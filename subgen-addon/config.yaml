@@ -12,15 +12,28 @@ ports:
 ports_description:
   9000/tcp: "ASR webservice port (use this in Bazarr)"
 
-environment:
+options:
   WHISPER_MODEL: "small"
   TRANSCRIBE_DEVICE: "cpu"
-  CONCURRENT_TRANSCRIPTIONS: "1"
-  WHISPER_THREADS: "4"
+  CONCURRENT_TRANSCRIPTIONS: 1
+  WHISPER_THREADS: 4
   TRANSCRIBE_OR_TRANSLATE: "transcribe"
-  WEBHOOKPORT: "9000"
-  PROCADDEDMEDIA: "false"
-  PROCMEDIAONPLAY: "false"
-  USE_PATH_MAPPING: "false"
+  WEBHOOKPORT: 9000
+  PROCADDEDMEDIA: false
+  PROCMEDIAONPLAY: false
+  USE_PATH_MAPPING: false
   MODEL_PATH: "/share/subgen/models"
-  DEBUG: "false"
+  DEBUG: false
+
+schema:
+  WHISPER_MODEL: str
+  TRANSCRIBE_DEVICE: str
+  CONCURRENT_TRANSCRIPTIONS: int
+  WHISPER_THREADS: int
+  TRANSCRIBE_OR_TRANSLATE: str
+  WEBHOOKPORT: int
+  PROCADDEDMEDIA: bool
+  PROCMEDIAONPLAY: bool
+  USE_PATH_MAPPING: bool
+  MODEL_PATH: str
+  DEBUG: bool
