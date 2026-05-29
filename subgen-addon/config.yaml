@@ -1,0 +1,26 @@
+name: "SubGen - Whisper Subtitles for Bazarr"
+description: "Automatically generates subtitles using OpenAI Whisper using ASR API. Useful as subtitle provider in Bazarr."
+version: "1.0.1"
+slug: "subgen"
+init: false
+arch:
+  - amd64
+  - aarch64
+
+ports:
+  9000/tcp: 9000
+ports_description:
+  9000/tcp: "ASR webservice port (use this in Bazarr)"
+
+environment:
+  WHISPER_MODEL: "small"
+  TRANSCRIBE_DEVICE: "cpu"
+  CONCURRENT_TRANSCRIPTIONS: "1"
+  WHISPER_THREADS: "4"
+  TRANSCRIBE_OR_TRANSLATE: "transcribe"
+  WEBHOOKPORT: "9000"
+  PROCADDEDMEDIA: "false"
+  PROCMEDIAONPLAY: "false"
+  USE_PATH_MAPPING: "false"
+  MODEL_PATH: "/share/subgen/models"
+  DEBUG: "false"
