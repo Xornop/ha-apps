@@ -41,4 +41,4 @@ EOF
 echo "[SubGen] Written subgen.env with settings:"
 cat /subgen/subgen.env
 
-exec /init
+exec python3 /subgen/subgen.py
