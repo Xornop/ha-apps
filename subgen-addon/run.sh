@@ -40,5 +40,8 @@ EOF
 
 echo "[SubGen] Written subgen.env with settings:"
 cat /subgen/subgen.env
-
+echo "[SubGen] Looking for subgen.env, checking locations:"
+find / -name "subgen.env" 2>/dev/null
+echo "[SubGen] SubGen working directory:"
+ls /subgen/
 exec python3 /subgen/subgen.py
