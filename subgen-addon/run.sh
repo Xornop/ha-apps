@@ -1,4 +1,7 @@
 #!/bin/bash
+echo "==============================================="
+echo "[SubGen Addon] run.sh is executing!"
+echo "==============================================="
 
 OPTIONS_FILE="/data/options.json"
 
