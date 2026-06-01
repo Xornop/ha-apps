@@ -1,6 +1,6 @@
 name: "SubGen - Whisper Subtitles for Bazarr"
 description: "Automatically generates subtitles using OpenAI Whisper via the ASR API. Can be used as a subtitle provider in Bazarr."
-version: "1.0.10"
+version: "1.0.11"
 slug: "subgen-addon"
 init: false
 arch:
