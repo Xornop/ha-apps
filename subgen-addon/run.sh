@@ -3,40 +3,39 @@
 OPTIONS_FILE="/data/options.json"
 
 if [ -f "$OPTIONS_FILE" ]; then
-    echo "[SubGen] Reading configuration from HA addon options..."
-
-    export WHISPER_MODEL=$(jq -r '.WHISPER_MODEL // "medium"' "$OPTIONS_FILE")
-    export TRANSCRIBE_DEVICE=$(jq -r '.TRANSCRIBE_DEVICE // "cpu"' "$OPTIONS_FILE")
-    export CONCURRENT_TRANSCRIPTIONS=$(jq -r '.CONCURRENT_TRANSCRIPTIONS // "1"' "$OPTIONS_FILE")
-    export WHISPER_THREADS=$(jq -r '.WHISPER_THREADS // "4"' "$OPTIONS_FILE")
-    export TRANSCRIBE_OR_TRANSLATE=$(jq -r '.TRANSCRIBE_OR_TRANSLATE // "translate"' "$OPTIONS_FILE")
-    export DEBUG=$(jq -r '.DEBUG // "false"' "$OPTIONS_FILE")
-    export WEBHOOKPORT=$(jq -r '.WEBHOOKPORT // "9000"' "$OPTIONS_FILE")
+    WHISPER_MODEL=$(jq -r '.WHISPER_MODEL // "small"' "$OPTIONS_FILE")
+    TRANSCRIBE_DEVICE=$(jq -r '.TRANSCRIBE_DEVICE // "cpu"' "$OPTIONS_FILE")
+    CONCURRENT_TRANSCRIPTIONS=$(jq -r '.CONCURRENT_TRANSCRIPTIONS // "1"' "$OPTIONS_FILE")
+    WHISPER_THREADS=$(jq -r '.WHISPER_THREADS // "4"' "$OPTIONS_FILE")
+    TRANSCRIBE_OR_TRANSLATE=$(jq -r '.TRANSCRIBE_OR_TRANSLATE // "translate"' "$OPTIONS_FILE")
+    WEBHOOKPORT=$(jq -r '.WEBHOOKPORT // "9000"' "$OPTIONS_FILE")
+    DEBUG=$(jq -r '.DEBUG // "false"' "$OPTIONS_FILE")
 else
-    echo "[SubGen] No options.json found, using defaults..."
-    export WHISPER_MODEL="medium"
-    export TRANSCRIBE_DEVICE="cpu"
-    export CONCURRENT_TRANSCRIPTIONS="1"
-    export WHISPER_THREADS="4"
-    export TRANSCRIBE_OR_TRANSLATE="translate"
-    export DEBUG="false"
-    export WEBHOOKPORT="9000"
-
+    WHISPER_MODEL="small"
+    TRANSCRIBE_DEVICE="cpu"
+    CONCURRENT_TRANSCRIPTIONS="1"
+    WHISPER_THREADS="4"
+    TRANSCRIBE_OR_TRANSLATE="transcribe"
+    WEBHOOKPORT="9000"
+    DEBUG="false"
 fi
 
-# Fixed settings
-export PROCADDEDMEDIA="false"
-export PROCMEDIAONPLAY="false"
-export USE_PATH_MAPPING="false"
-export MODEL_PATH="/data/models"
+# Write subgen.env so SubGen picks it up automatically
+cat > /subgen/subgen.env << EOF
+WHISPER_MODEL=${WHISPER_MODEL}
+TRANSCRIBE_DEVICE=${TRANSCRIBE_DEVICE}
+CONCURRENT_TRANSCRIPTIONS=${CONCURRENT_TRANSCRIPTIONS}
+WHISPER_THREADS=${WHISPER_THREADS}
+TRANSCRIBE_OR_TRANSLATE=${TRANSCRIBE_OR_TRANSLATE}
+WEBHOOKPORT=${WEBHOOKPORT}
+MODEL_PATH=/data/models
+PROCADDEDMEDIA=false
+PROCMEDIAONPLAY=false
+USE_PATH_MAPPING=false
+DEBUG=${DEBUG}
+EOF
 
-echo "[SubGen] Starting with:"
-echo "  Model:                  $WHISPER_MODEL"
-echo "  Device:                 $TRANSCRIBE_DEVICE"
-echo "  Threads:                $WHISPER_THREADS"
-echo "  Concurrent:             $CONCURRENT_TRANSCRIPTIONS"
-echo "  Mode:                   $TRANSCRIBE_OR_TRANSLATE"
-echo "  Model storage path:     $MODEL_PATH"
-echo "  Port:                   $WEBHOOKPORT"
-# Start SubGen
-exec python3 /subgen/subgen.py
+echo "[SubGen] Written subgen.env with settings:"
+cat /subgen/subgen.env
+
+exec /init
