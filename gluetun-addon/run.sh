@@ -26,7 +26,7 @@ else
     export SHADOWSOCKS_ENABLED="off"
 fi
 
-if bashio::config.has_value 'http_proxy_enabled' && [ "$(bashio::config 'http_proxy_enabled')" = "true" ]; then
+if [ "$(bashio::config 'http_proxy_enabled')" = "true" ]; then
     export HTTPPROXY_ENABLED="on"
     export HTTPPROXY_PORT="$(bashio::config 'http_proxy_port' '8888')"
 else
