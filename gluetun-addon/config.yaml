@@ -1,5 +1,5 @@
 name: "Gluetun VPN"
-version: "1.0.5"
+version: "1.0.6"
 slug: "gluetun-addon"
 description: "VPN client for multiple providers with proxy services"
 arch:
