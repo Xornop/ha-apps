@@ -5,4 +5,4 @@ build_from:
   armv7: ghcr.io/home-assistant/armv7-base:latest
   i386: ghcr.io/home-assistant/i386-base:latest
 args:
-  GLUETUN_VERSION: "v3.41.1"
+  GLUETUN_VERSION: "v3.39.0"
