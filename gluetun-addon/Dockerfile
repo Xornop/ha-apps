@@ -8,7 +8,7 @@ RUN apk add --no-cache \
     wireguard-tools \
     tzdata
 
-COPY --from=ghcr.io/qdm12/gluetun:v3.40.0 /gluetun-entrypoint /usr/local/bin/gluetun
+COPY --from=ghcr.io/qdm12/gluetun:v3.41.1 /gluetun-entrypoint /usr/local/bin/gluetun
 
 RUN mkdir -p /gluetun
 
