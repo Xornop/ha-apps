@@ -53,3 +53,7 @@ schema:
   http_proxy_port: int(1024,65535)
   dns_providers: str?
   tz: str?
+ports:
+  8888/tcp: 8888
+  8388/tcp: 8388
+  8388/udp: 8388
