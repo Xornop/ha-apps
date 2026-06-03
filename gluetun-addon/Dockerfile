@@ -1,19 +1,13 @@
 ARG BUILD_FROM
-FROM $BUILD_FROM
+FROM $BUILD_FROM AS base
 
-# Runtime dependencies
+# Install only what's needed for HA addon + gluetun runtime
 RUN apk add --no-cache \
     ca-certificates \
     iptables \
     iptables-legacy \
     wireguard-tools \
-    tzdata \
-    python3 \
-    py3-pip \
-    py3-flask \
-    py3-requests
-
-RUN pip3 install --break-system-packages flask-cors
+    tzdata
 
 # Copy gluetun binary from official image
 COPY --from=ghcr.io/qdm12/gluetun:v3.40.0 /gluetun /usr/local/bin/gluetun
@@ -25,7 +19,6 @@ RUN mkdir -p /gluetun
 COPY run.sh /addon/run.sh
 COPY startup.sh /addon/startup.sh
 COPY gluetun-config.sh /addon/gluetun-config.sh
-COPY web/ /web/
 COPY s6-services/ /etc/services.d/
 RUN chmod a+x /addon/*.sh /etc/services.d/*/run
 
