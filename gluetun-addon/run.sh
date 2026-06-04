@@ -4,6 +4,10 @@ if bashio::config.has_value 'tz'; then
     export TZ="$(bashio::config 'tz')"
 fi
 
+if bashio::config.has_value 'server_countries'; then
+    export SERVER_COUNTRIES="$(bashio::config 'server_countries')"
+fi
+
 export VPN_SERVICE_PROVIDER="$(bashio::config 'vpn_provider')"
 export VPN_TYPE="$(bashio::config 'vpn_type')"
 
