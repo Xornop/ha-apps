@@ -26,6 +26,7 @@ A Home Assistant add-on that provides a VPN client for multiple providers using 
 | `http_proxy_enabled` | bool | No | Enable HTTP proxy |
 | `http_proxy_port` | int | No | HTTP proxy port (default: `8888`) |
 | `tz` | string | No | Timezone (e.g. `Europe/Amsterdam`) |
+| `server_countries` | string | No | Exit node countries, seperated by commas |
 
 ## Supported VPN Providers
 
