@@ -24,6 +24,7 @@ else
     ASR_PORT="9001"
 fi
 
+export ASR_MODEL_PATH="/data/models"
 export ASR_MODEL="${ASR_MODEL}"
 export ASR_ENGINE="${ASR_ENGINE}"
 export ASR_COMPUTE_TYPE="${ASR_COMPUTE_TYPE}"
