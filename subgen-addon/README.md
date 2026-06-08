@@ -4,6 +4,8 @@ This addon runs [SubGen](https://github.com/McCloudS/subgen) as a Home Assistant
 
 No API keys, no cloud, no cost — everything runs locally on your Home Assistant machine.
 
+DO NOT COMPLAIN IF IT FAILS - YOU PROBABLY RAN OUT OF RAM - TESTED WITH 16GB RAM, WORKS WITH MOVIES LESS THAN 2 HOURS RUNTIME ON MODEL SMALL-INT8
+
 ## Installation
 
 1. In Home Assistant, navigate to **Settings → Add-ons → Add-on Store**
