@@ -40,4 +40,10 @@ echo "  Task:         $WHISPER_TASK"
 echo "  Port:         $ASR_PORT"
 echo "[Whisper ASR] ASR webservice will be available on port $ASR_PORT"
 
+echo "[Whisper ASR] Checking entrypoint..."
+cat /entrypoint.sh 2>/dev/null || echo "no entrypoint.sh"
+ls / | grep -i entry 2>/dev/null
+which uvicorn 2>/dev/null
+which python3 2>/dev/null
+
 exec gunicorn --bind "0.0.0.0:${ASR_PORT}" --workers 1 --timeout 0 "app.webservice:app" -k uvicorn.workers.UvicornWorker
