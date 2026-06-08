@@ -24,6 +24,7 @@ else
     ASR_PORT="9001"
 fi
 
+export LOG_LEVEL="debug"
 export ASR_MODEL_PATH="/data/models"
 export ASR_MODEL="${ASR_MODEL}"
 export ASR_ENGINE="${ASR_ENGINE}"
