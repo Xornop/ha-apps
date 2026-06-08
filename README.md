@@ -12,6 +12,7 @@ A curated collection of custom add-ons designed to extend the capabilities of yo
 | --- | --- |
 | **🤖 Subgen** | Automatic subtitle generation for your media library using Whisper AI. |
 | **🛡️ Gluetun** | A secure VPN/Wireguard routing service, optimized for seamless integration with `*arr` stacks. |
+| **Whisper ASR** | Not maintained. It works, but my Subgen addon can handle larger movies - Whisper ASR addon is faster though, so recommended for TV series |
 
 ---
 
