@@ -10,7 +10,7 @@ arch:
   - amd64
 
 options:
-  media_server_type: "jellyfin"
+  media_server_type: "Jellyfin"
   media_server_url: "http://homeassistant.local:8096"
   media_server_api_key: ""
   sonarr_url: "http://homeassistant.local:8989"
@@ -23,7 +23,7 @@ options:
   libraries: ""
 
 schema:
-  media_server_type: "str"
+  media_server_type: list(Jellyfin|Emby|Plex|Tautulli)
   media_server_url: "url"
   media_server_api_key: "str"
   sonarr_url: "url"
