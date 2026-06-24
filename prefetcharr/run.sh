@@ -1,6 +1,6 @@
 #!/usr/bin/with-contenv bashio
 
-MEDIA_SERVER_TYPE=$(bashio::config 'media_server_type' | tr '[:upper:]' '[:lower:]')
+MEDIA_SERVER_TYPE=$(bashio::config 'media_server_type')
 MEDIA_SERVER_URL=$(bashio::config 'media_server_url')
 MEDIA_SERVER_API_KEY=$(bashio::config 'media_server_api_key')
 SONARR_URL=$(bashio::config 'sonarr_url')
