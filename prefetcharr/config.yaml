@@ -1,0 +1,44 @@
+name: Prefetcharr
+description: >
+  Automatically have Sonarr fetch the next episodes of the show you're
+  watching on Jellyfin, Emby, or Plex.
+version: "1.4.0"
+slug: prefetcharr
+url: https://github.com/p-hueber/prefetcharr
+init: false
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+
+options:
+  media_server_type: "jellyfin"
+  media_server_url: "http://homeassistant.local:8096"
+  media_server_api_key: ""
+  sonarr_url: "http://homeassistant.local:8989"
+  sonarr_api_key: ""
+  interval: 900
+  prefetch_num: 2
+  request_seasons: true
+  log_level: "Info"
+  users: ""
+  libraries: ""
+
+schema:
+  media_server_type: "str"
+  media_server_url: "url"
+  media_server_api_key: "str"
+  sonarr_url: "url"
+  sonarr_api_key: "str"
+  interval: "int"
+  prefetch_num: "int"
+  request_seasons: "bool"
+  log_level: list(Trace|Debug|Info|Warn|Error)
+  users: "str?"
+  libraries: "str?"
+
+map:
+  - type: addon_config
+    read_only: false
