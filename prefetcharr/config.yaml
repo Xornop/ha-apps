@@ -18,6 +18,7 @@ options:
   interval: 900
   prefetch_num: 2
   request_seasons: true
+  connection_retries: 6
   log_level: "Info"
   users: ""
   libraries: ""
@@ -31,6 +32,7 @@ schema:
   interval: "int"
   prefetch_num: "int"
   request_seasons: "bool"
+  connection_retries: "int"
   log_level: list(Trace|Debug|Info|Warn|Error)
   users: "str?"
   libraries: "str?"
