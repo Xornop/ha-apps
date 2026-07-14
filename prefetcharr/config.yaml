@@ -2,7 +2,7 @@ name: Prefetcharr
 description: >
   Automatically have Sonarr fetch the next episodes of the show you're
   watching on Jellyfin, Emby, or Plex.
-version: "1.4.0"
+version: "1.4.1"
 slug: prefetcharr
 url: https://github.com/p-hueber/prefetcharr
 init: false
