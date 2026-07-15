@@ -1,6 +1,6 @@
 # SubGen - Whisper Subtitles for Bazarr
 
-This App runs [SubGen](https://github.com/McCloudS/subgen) as a Home Assistant App. SubGen uses the OpenAI Whisper model to automatically generate subtitles, and provides an ASR API that Bazarr can use.
+This addon runs [SubGen](https://github.com/McCloudS/subgen) as a Home Assistant addon. SubGen uses the OpenAI Whisper model to automatically generate subtitles, and provides an ASR API that Bazarr can use.
 
 No API keys, no cloud, no cost — everything runs locally on your Home Assistant machine.
 
@@ -8,10 +8,10 @@ DO NOT COMPLAIN IF IT FAILS - YOU PROBABLY RAN OUT OF RAM - TESTED WITH 16GB RAM
 
 ## Installation
 
-1. In Home Assistant, navigate to **Settings → Apps → Install App**
+1. In Home Assistant, navigate to **Settings → Add-ons → Add-on Store**
 2. Click on the **three dots** (top right) → **Repositories**
-3. Add `https://github.com/Xornop/ha-apps`
-4. Search for **SubGen** and install the App
+3. Add `https://github.com/Xornop/ha-addons`
+4. Search for **SubGen** and install the addon
 
 ## Settings
 

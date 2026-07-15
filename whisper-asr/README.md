@@ -1,4 +1,4 @@
-- not maintained. it works, but my subgen app can handle larger movies - whisper asr app is faster though -
+- not maintained. it works, but my subgen addon can handle larger movies - whisper asr addon is faster though -
 
 # Whisper ASR Webservice
 
@@ -12,7 +12,7 @@ DO NOT COMPLAIN IF IT FAILS - YOU PROBABLY RAN OUT OF RAM OR CPU - TESTED WITH 1
 
 ## Installation
 
-1. In Home Assistant, navigate to **Settings → Apps → Install App**
+1. In Home Assistant, navigate to **Settings → Add-ons → Add-on Store**
 2. Click on the **three dots** (top right) → **Repositories**
 3. Add `https://github.com/Xornop/ha-addons`
 4. Search for **Whisper ASR Webservice** and install the addon
