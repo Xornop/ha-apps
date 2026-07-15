@@ -1,14 +1,14 @@
 ---
 
-# 🛠️ Xornop's Home Assistant Add-ons
+# 🛠️ Xornop's Home Assistant Apps
 
-A curated collection of custom add-ons designed to extend the capabilities of your Home Assistant ecosystem, focusing on media automation and network privacy.
+A curated collection of custom Apps designed to extend the capabilities of your Home Assistant ecosystem, focusing on media automation and network privacy.
 
 ---
 
-## 📦 Current Add-ons
+## 📦 Current Apps
 
-| Add-on | Description |
+| App | Description |
 | --- | --- |
 | **🤖 Subgen** | Automatic subtitle generation for your media library using Whisper AI. |
 | **🛡️ Gluetun** | A secure VPN/Wireguard routing service, optimized for seamless integration with `*arr` stacks. |
@@ -19,18 +19,18 @@ A curated collection of custom add-ons designed to extend the capabilities of yo
 
 ## 🚀 Installation
 
-Adding these add-ons to your Home Assistant instance is straightforward:
+Adding these Apps to your Home Assistant instance is straightforward:
 
 1. Navigate to your Home Assistant dashboard.
-2. Go to **Settings** > **Add-ons** *(formerly the Add-on Store)*.
-3. Click on the **Add-on Store** button in the bottom right corner.
+2. Go to **Settings** > **Apps** *(formerly the App Store)*.
+3. Click on the **App Store** button in the bottom right corner.
 4. Click the three dots (menu) in the top right and select **Repositories**.
 5. Copy and paste the following URL into the field:
 
 ```
-https://github.com/Xornop/ha-addons
+https://github.com/Xornop/ha-Apps
 ```
-6. Click **Add**, close the dialog, and refresh your browser. The add-ons will now appear under the **Xornop's HA addons** section.
+6. Click **Add**, close the dialog, and refresh your browser. The Apps will now Appear under the **Xornop's HA addons** section.
 
 ---
 
