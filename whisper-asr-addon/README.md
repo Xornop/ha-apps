@@ -12,7 +12,7 @@ DO NOT COMPLAIN IF IT FAILS - YOU PROBABLY RAN OUT OF RAM OR CPU - TESTED WITH 1
 
 ## Installation
 
-1. In Home Assistant, navigate to **Settings → Apps → App Store**
+1. In Home Assistant, navigate to **Settings → Apps → Install App**
 2. Click on the **three dots** (top right) → **Repositories**
 3. Add `https://github.com/Xornop/ha-addons`
 4. Search for **Whisper ASR Webservice** and install the addon
