@@ -1,0 +1,33 @@
+name: "Whisper Pro ASR (chunking, CPU-friendly)"
+description: "Runs ventura8/whisper-pro-asr as a Home Assistant addon. Bazarr-compatible ASR webservice with chunked processing for long files, aimed at CPU-only systems using small/tiny models."
+version: "1.0.0"
+slug: "whisper-pro-asr"
+init: false
+arch:
+  - amd64
+  - aarch64
+
+ports:
+  9000/tcp: 9000
+ports_description:
+  9000/tcp: "ASR webservice port (use this in Bazarr)"
+
+options:
+  ASR_MODEL: "Systran/faster-whisper-small"
+  ASR_DEVICE: "CPU"
+  ASR_COMPUTE_TYPE: "int8"
+  ASR_BEAM_SIZE: "5"
+  ASR_BATCH_SIZE: "1"
+  ENABLE_VOCAL_SEPARATION: false
+  ENABLE_LD_PREPROCESSING: true
+  DEBUG: false
+
+schema:
+  ASR_MODEL: "str"
+  ASR_DEVICE: "list(AUTO|CPU|CUDA)"
+  ASR_COMPUTE_TYPE: "list(AUTO|int8|float16|float32)"
+  ASR_BEAM_SIZE: "str"
+  ASR_BATCH_SIZE: "str"
+  ENABLE_VOCAL_SEPARATION: "bool"
+  ENABLE_LD_PREPROCESSING: "bool"
+  DEBUG: "bool"
