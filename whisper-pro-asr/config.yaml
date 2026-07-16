@@ -1,4 +1,4 @@
-name: "Whisper Pro ASR (chunking, CPU-friendly)"
+name: "Whisper Pro ASR"
 description: "Runs ventura8/whisper-pro-asr as a Home Assistant addon. Bazarr-compatible ASR webservice with chunked processing for long files, aimed at CPU-only systems using small/tiny models."
 version: "1.0.0"
 slug: "whisper-pro-asr"
