@@ -12,7 +12,7 @@ This image is marketed primarily for Whisper Large-V3 on GPU/NPU hardware, but t
 2. Click on the **three dots** (top right) → **Repositories**
 3. Add `https://github.com/Xornop/ha-addons`
 4. Search for **Whisper Pro ASR** and install the addon
-5. Install can take a couple minutes and might seem stuck on installing. The library is fairly large and will be downloaded entirely (about 15 GB). If installation has failed, it will show in your logs, otherwise be patient!
+5. Install can take a couple minutes and might seem stuck on installing. The library is fairly large and will be downloaded entirely (takes up over 15 GB of storage). If installation has failed, it will show in your logs, otherwise be patient!
 
 ## Settings
 
