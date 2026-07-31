@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import secrets
 import sqlite3
@@ -7,8 +8,17 @@ import time
 
 import requests
 from flask import Flask, make_response, request
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
+)
+logger = logging.getLogger("ha-gatekeeper")
 
 app = Flask(__name__)
+# Trust X-Forwarded-For/-Proto from the reverse proxy (e.g. NGINX Proxy
+# Manager) so request.remote_addr reflects the real visitor, not the proxy.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 OPTIONS_PATH = "/data/options.json"
 DB_PATH = "/data/sessions.db"
@@ -23,7 +33,7 @@ def load_options():
     users = {u["name"]: u["password"] for u in opts.get("users", [])}
     session_days = opts.get("session_days", 365)
     cookie_secure = opts.get("cookie_secure", True)
-    success_message = opts.get("success_message", "Action triggered \u2705")
+    success_message = opts.get("success_message", "Actie getriggerd \u2705")
     error_message = opts.get("error_message", "Error. Notify an admin.")
     return users, session_days, cookie_secure, success_message, error_message
 
@@ -90,7 +100,7 @@ def fire_and_reset(username, hold_seconds=3):
     try:
         set_binary_sensor(username, "on")
     except Exception as exc:  # noqa: BLE001
-        print(f"ERROR: failed to set binary_sensor for {username}: {exc}")
+        logger.error("Failed to set binary_sensor for %s: %s", username, exc)
         return False
 
     def _reset():
@@ -98,7 +108,7 @@ def fire_and_reset(username, hold_seconds=3):
         try:
             set_binary_sensor(username, "off")
         except Exception as exc:  # noqa: BLE001
-            print(f"ERROR: failed to reset binary_sensor for {username}: {exc}")
+            logger.error("Failed to reset binary_sensor for %s: %s", username, exc)
 
     threading.Thread(target=_reset, daemon=True).start()
     return True
@@ -153,7 +163,7 @@ RESULT_HTML = """<!doctype html>
 
 def render_result(success):
     if success:
-        return RESULT_HTML.format(title="Success", message=SUCCESS_MESSAGE, error_class="")
+        return RESULT_HTML.format(title="Gelukt", message=SUCCESS_MESSAGE, error_class="")
     return RESULT_HTML.format(title="Fout", message=ERROR_MESSAGE, error_class=" error")
 
 
@@ -165,6 +175,11 @@ def trigger():
 
     if username:
         ok = fire_and_reset(username)
+        if ok:
+            logger.info(
+                "Triggered by '%s' via saved session (%s)",
+                username, request.remote_addr,
+            )
         return render_result(ok), (200 if ok else 502)
 
     if request.method == "GET":
@@ -174,11 +189,20 @@ def trigger():
     form_password = request.form.get("password", "")
 
     if USERS.get(form_username) != form_password:
+        logger.warning(
+            "Failed login attempt for username '%s' from %s",
+            form_username, request.remote_addr,
+        )
         error = '<p class="error">Fout wachtwoord</p>'
         return LOGIN_HTML.format(error=error), 401
 
     new_token = create_session(form_username)
     ok = fire_and_reset(form_username)
+    if ok:
+        logger.info(
+            "Triggered by '%s' via new login (%s)",
+            form_username, request.remote_addr,
+        )
 
     resp = make_response(render_result(ok), 200 if ok else 502)
     resp.set_cookie(
