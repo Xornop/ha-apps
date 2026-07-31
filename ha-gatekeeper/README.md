@@ -4,12 +4,17 @@ A Home Assistant add-on that exposes a single link. Visitors do **not** get a
 real Home Assistant account:
 
 - First visit → a small login page (username + password, configured in the
-  add-on options), with optional custom Markdown text underneath.
-- On success, a long-lived, cookie is stored on that device and
-  the configured `binary_sensor.gatekeeper_<user>` is turned on (then
-  automatically turned back off a few seconds later).
-- Any later visit from the same device skips the login page entirely and
-  triggers the sensor immediately.
+  add-on options), with an optional "Remember me" checkbox and optional
+  custom Markdown text shown below it in its own card.
+- On success, if **"Remember me"** was checked, a long-lived, `httponly`
+  cookie is stored on that device (valid for `session_days`) and the
+  configured `binary_sensor.gatekeeper_<user>` is turned on (then
+  automatically turned back off a few seconds later). If it was **not**
+  checked, a session-only cookie is used instead — it disappears as soon as
+  the browser is fully closed, so the visitor has to log in again next
+  time.
+- Any later visit from the same device with a still-valid cookie skips the
+  login page entirely and triggers the sensor immediately.
 - If a user is later removed from the configuration, their saved session is
   revoked and their cookie is deleted the next time they visit — they're
   sent back to the login page instead of triggering anything.
@@ -36,7 +41,7 @@ server.
        password: "another-strong-password"
    session_days: 365
    cookie_secure: true
-   success_message: "Action triggered ✅"
+   success_message: "Actie getriggerd ✅"
    error_message: "Error. Notify an admin."
    login_footer_text: ""
    ```
@@ -57,7 +62,11 @@ server.
 | `cookie_secure` | bool | `true` | Marks the session cookie `secure`, requiring HTTPS to persist. Keep `true` in production; only set `false` for local/LAN-only testing over plain HTTP — see warning below. |
 | `success_message` | str | `"Actie getriggerd ✅"` | Text shown after a successful trigger. Emoji allowed. |
 | `error_message` | str | `"Error. Notify an admin."` | Text shown if triggering the action fails (e.g. Home Assistant unreachable). |
-| `login_footer_text` | str | `""` | Optional Markdown text shown under the login form (instructions, contact info, etc.). Leave empty to show nothing. Use a YAML `\|` block in the options editor if you need multiple lines. |
+| `login_footer_text` | str | `""` | Optional Markdown text shown below the login form, in its own card. Leave empty to show nothing. Use a YAML `\|` block in the options editor if you need multiple lines. |
+
+Note: the rest of the login page's static text is in Dutch, but the
+"Remember me" checkbox label is hardcoded in English — edit
+`LOGIN_HTML` in `app/app.py` directly if you want it translated.
 
 ### `cookie_secure` warning
 
@@ -134,7 +143,3 @@ picks them up automatically.
   server. A single worker is used deliberately so all requests share one
   SQLite connection to `/data/sessions.db`; threads still allow handling
   multiple requests concurrently.
-
-## Disclaimer
-
-Don't use this to unlock doors or other stuff you don't want people to use/access. I can't promise the security of this app won't be compromised. Use at your own risk!
