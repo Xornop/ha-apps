@@ -14,3 +14,6 @@ configuration:
   error_message:
     name: Error message
     description: Text shown if triggering the action fails, e.g. because Home Assistant could not be reached.
+  login_footer_text:
+    name: Login page footer text
+    description: Optional Markdown text shown below the login form (e.g. instructions or contact info for visitors). Leave empty to show nothing. Basic Markdown (bold, links, line breaks) is supported.
