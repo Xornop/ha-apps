@@ -10,11 +10,12 @@ A curated collection of custom Apps designed to extend the capabilities of your 
 
 | App | Description |
 | --- | --- |
-| **🤖 Subgen** | Automatic subtitle generation for your media library using Whisper AI. |
+| **Subgen** | Automatic subtitle generation for your media library using Whisper AI. |
 | **Whisper ASR** | Not maintained. It works, but my Subgen app can handle larger movies - Whisper ASR addon is faster though, so recommended for TV series. |
 | **Whisper Pro ASR** | Basically the same as above, but this adds a couple features like chunking to save on RAM usage. Has not been stress tested but works fine |
 | **Prefetcharr** | Automatically search for the next season of a TV series in Sonarr as soon as you reach the end of the currently downloaded season. |
-| **🛡️ Gluetun** | A secure VPN/Wireguard routing service, optimized for seamless integration with `*arr` stacks. |
+| **Gluetun** | A secure VPN/Wireguard routing service, optimized for seamless integration with `*arr` stacks. |
+| **HA Gatekeeper*** | Provides a web adress that a non-HA user can visit to trigger an action in your home - with login and long lived access tokens |
 
 ---
 
@@ -32,6 +33,10 @@ Adding these Apps to your Home Assistant instance is straightforward:
 https://github.com/Xornop/ha-Apps
 ```
 6. Click **Add**, close the dialog, and refresh your browser. The Apps will now Appear under the **Xornop's HA addons** section.
+
+Alternatively, click this button:
+
+[![Open your Home Assistant instance and show the add app repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fxornop%2Fha-apps)
 
 ---
 
