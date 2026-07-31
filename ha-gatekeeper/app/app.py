@@ -34,7 +34,7 @@ def load_options():
     users = {u["name"]: u["password"] for u in opts.get("users", [])}
     session_days = opts.get("session_days", 365)
     cookie_secure = opts.get("cookie_secure", True)
-    success_message = opts.get("success_message", "Actie getriggerd \u2705")
+    success_message = opts.get("success_message", "Action triggered \u2705")
     error_message = opts.get("error_message", "Error. Notify an admin.")
     login_footer_text = opts.get("login_footer_text", "")
     return (
@@ -133,45 +133,48 @@ def fire_and_reset(username, hold_seconds=3):
 
 
 LOGIN_HTML = """<!doctype html>
-<html lang="nl">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Inloggen</title>
+  <title>Login</title>
   <style>
-    body {{ font-family: sans-serif; display: flex; justify-content: center;
-            align-items: center; height: 100vh; margin: 0; background: #f2f2f2; }}
+    body {{ font-family: sans-serif; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; height: 100vh;
+            margin: 0; background: #f2f2f2; gap: 1rem; }}
     form {{ background: white; padding: 2rem; border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex;
-            flex-direction: column; gap: 0.75rem; width: 250px; }}
+            flex-direction: column; gap: 0.75rem; width: 250px;
+            box-sizing: border-box; }}
     input {{ padding: 0.5rem; font-size: 1rem; }}
     button {{ padding: 0.6rem; font-size: 1rem; cursor: pointer; }}
     .error {{ color: #b00020; font-size: 0.9rem; }}
-    .footer {{ margin-top: 1rem; width: 250px; font-size: 0.85rem;
-               color: #555; text-align: center; }}
+    .footer {{ background: white; padding: 1rem 1.5rem; border-radius: 8px;
+               box-shadow: 0 2px 8px rgba(0,0,0,0.1); width: 250px;
+               box-sizing: border-box; font-size: 0.85rem; color: #555;
+               text-align: center; }}
+    .footer:empty {{ display: none; }}
     .footer a {{ color: #555; }}
     .remember {{ display: flex; align-items: center; gap: 0.4rem;
                  font-size: 0.9rem; }}
   </style>
 </head>
 <body>
-  <div>
-    <form method="post">
-      {error}
-      <input name="username" placeholder="Gebruikersnaam" autofocus required>
-      <input name="password" type="password" placeholder="Wachtwoord" required>
-      <label class="remember">
-        <input type="checkbox" name="remember"> Onthoud mij
-      </label>
-      <button type="submit">Inloggen</button>
-    </form>
-    <div class="footer">{footer}</div>
-  </div>
+  <form method="post">
+    {error}
+    <input name="username" placeholder="Username" autofocus required>
+    <input name="password" type="password" placeholder="Password" required>
+    <label class="remember">
+      <input type="checkbox" name="remember"> Remember me
+    </label>
+    <button type="submit">Log in</button>
+  </form>
+  <div class="footer">{footer}</div>
 </body>
 </html>"""
 
 RESULT_HTML = """<!doctype html>
-<html lang="nl">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -192,8 +195,8 @@ RESULT_HTML = """<!doctype html>
 
 def render_result(success):
     if success:
-        return RESULT_HTML.format(title="Gelukt", message=SUCCESS_MESSAGE, error_class="")
-    return RESULT_HTML.format(title="Fout", message=ERROR_MESSAGE, error_class=" error")
+        return RESULT_HTML.format(title="Success", message=SUCCESS_MESSAGE, error_class="")
+    return RESULT_HTML.format(title="Error", message=ERROR_MESSAGE, error_class=" error")
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -235,7 +238,7 @@ def trigger():
             "Failed login attempt for username '%s' from %s",
             form_username, request.remote_addr,
         )
-        error = '<p class="error">Fout wachtwoord</p>'
+        error = '<p class="error">Incorrect password</p>'
         resp = make_response(LOGIN_HTML.format(error=error, footer=LOGIN_FOOTER_HTML), 401)
         if stale_cookie:
             resp.delete_cookie(COOKIE_NAME)
