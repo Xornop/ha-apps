@@ -36,7 +36,7 @@ server.
        password: "another-strong-password"
    session_days: 365
    cookie_secure: true
-   success_message: "Actie getriggerd ✅"
+   success_message: "Action triggered ✅"
    error_message: "Error. Notify an admin."
    login_footer_text: ""
    ```
