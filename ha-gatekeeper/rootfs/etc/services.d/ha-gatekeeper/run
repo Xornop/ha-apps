@@ -1,0 +1,7 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Start the Link Trigger web app
+# ==============================================================================
+bashio::log.info "Starting HA Gatekeeper..."
+cd /app || exit 1
+exec gunicorn --bind 0.0.0.0:8099 --workers 1 --threads 4 app:app

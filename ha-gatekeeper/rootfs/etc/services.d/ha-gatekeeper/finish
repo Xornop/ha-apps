@@ -1,0 +1,5 @@
+#!/usr/bin/with-contenv bashio
+# ==============================================================================
+# Log a clean message when the service stops
+# ==============================================================================
+bashio::log.info "HA Gatekeeper stopped."
