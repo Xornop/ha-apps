@@ -7,6 +7,7 @@ import threading
 import time
 
 import requests
+import markdown
 from flask import Flask, make_response, request
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -35,10 +36,21 @@ def load_options():
     cookie_secure = opts.get("cookie_secure", True)
     success_message = opts.get("success_message", "Actie getriggerd \u2705")
     error_message = opts.get("error_message", "Error. Notify an admin.")
-    return users, session_days, cookie_secure, success_message, error_message
+    login_footer_text = opts.get("login_footer_text", "")
+    return (
+        users, session_days, cookie_secure,
+        success_message, error_message, login_footer_text,
+    )
 
 
-USERS, SESSION_DAYS, COOKIE_SECURE, SUCCESS_MESSAGE, ERROR_MESSAGE = load_options()
+(
+    USERS, SESSION_DAYS, COOKIE_SECURE,
+    SUCCESS_MESSAGE, ERROR_MESSAGE, LOGIN_FOOTER_TEXT,
+) = load_options()
+
+LOGIN_FOOTER_HTML = (
+    markdown.markdown(LOGIN_FOOTER_TEXT) if LOGIN_FOOTER_TEXT.strip() else ""
+)
 
 if not COOKIE_SECURE:
     print(
@@ -135,15 +147,21 @@ LOGIN_HTML = """<!doctype html>
     input {{ padding: 0.5rem; font-size: 1rem; }}
     button {{ padding: 0.6rem; font-size: 1rem; cursor: pointer; }}
     .error {{ color: #b00020; font-size: 0.9rem; }}
+    .footer {{ margin-top: 1rem; width: 250px; font-size: 0.85rem;
+               color: #555; text-align: center; }}
+    .footer a {{ color: #555; }}
   </style>
 </head>
 <body>
-  <form method="post">
-    {error}
-    <input name="username" placeholder="Gebruikersnaam" autofocus required>
-    <input name="password" type="password" placeholder="Wachtwoord" required>
-    <button type="submit">Inloggen</button>
-  </form>
+  <div>
+    <form method="post">
+      {error}
+      <input name="username" placeholder="Gebruikersnaam" autofocus required>
+      <input name="password" type="password" placeholder="Wachtwoord" required>
+      <button type="submit">Inloggen</button>
+    </form>
+    <div class="footer">{footer}</div>
+  </div>
 </body>
 </html>"""
 
@@ -199,7 +217,7 @@ def trigger():
         return render_result(ok), (200 if ok else 502)
 
     if request.method == "GET":
-        resp = make_response(LOGIN_HTML.format(error=""))
+        resp = make_response(LOGIN_HTML.format(error="", footer=LOGIN_FOOTER_HTML))
         if stale_cookie:
             resp.delete_cookie(COOKIE_NAME)
         return resp
@@ -213,7 +231,7 @@ def trigger():
             form_username, request.remote_addr,
         )
         error = '<p class="error">Fout wachtwoord</p>'
-        resp = make_response(LOGIN_HTML.format(error=error), 401)
+        resp = make_response(LOGIN_HTML.format(error=error, footer=LOGIN_FOOTER_HTML), 401)
         if stale_cookie:
             resp.delete_cookie(COOKIE_NAME)
         return resp
