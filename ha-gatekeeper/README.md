@@ -5,7 +5,7 @@ real Home Assistant account:
 
 - First visit → a small login page (username + password, configured in the
   add-on options), with optional custom Markdown text underneath.
-- On success, a long-lived, `httponly` cookie is stored on that device and
+- On success, a long-lived, cookie is stored on that device and
   the configured `binary_sensor.gatekeeper_<user>` is turned on (then
   automatically turned back off a few seconds later).
 - Any later visit from the same device skips the login page entirely and
