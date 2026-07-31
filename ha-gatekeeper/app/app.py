@@ -150,6 +150,8 @@ LOGIN_HTML = """<!doctype html>
     .footer {{ margin-top: 1rem; width: 250px; font-size: 0.85rem;
                color: #555; text-align: center; }}
     .footer a {{ color: #555; }}
+    .remember {{ display: flex; align-items: center; gap: 0.4rem;
+                 font-size: 0.9rem; }}
   </style>
 </head>
 <body>
@@ -158,6 +160,9 @@ LOGIN_HTML = """<!doctype html>
       {error}
       <input name="username" placeholder="Gebruikersnaam" autofocus required>
       <input name="password" type="password" placeholder="Wachtwoord" required>
+      <label class="remember">
+        <input type="checkbox" name="remember"> Onthoud mij
+      </label>
       <button type="submit">Inloggen</button>
     </form>
     <div class="footer">{footer}</div>
@@ -240,15 +245,17 @@ def trigger():
     ok = fire_and_reset(form_username)
     if ok:
         logger.info(
-            "Triggered by '%s' via new login (%s)",
+            "Triggered by '%s' via new login (%s, remember_me=%s)",
             form_username, request.remote_addr,
+            request.form.get("remember") == "on",
         )
 
+    remember_me = request.form.get("remember") == "on"
     resp = make_response(render_result(ok), 200 if ok else 502)
     resp.set_cookie(
         COOKIE_NAME,
         new_token,
-        max_age=SESSION_DAYS * 86400,
+        max_age=(SESSION_DAYS * 86400) if remember_me else None,
         httponly=True,
         secure=COOKIE_SECURE,
         samesite="Lax",
