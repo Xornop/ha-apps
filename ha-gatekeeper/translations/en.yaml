@@ -1,0 +1,16 @@
+configuration:
+  users:
+    name: Users
+    description: List of users allowed to log in through the link. Each entry needs a name and password.
+  session_days:
+    name: Session length (days)
+    description: How many days a device stays logged in after a successful login.
+  cookie_secure:
+    name: Require HTTPS for the session cookie
+    description: Keep this ON if the link is reachable over HTTPS (recommended). Only turn it OFF for local/LAN-only testing over plain HTTP — otherwise browsers will silently refuse to store the login cookie and devices will be asked to log in every time.
+  success_message:
+    name: Success message
+    description: Text (emoji allowed) shown after the action is triggered successfully.
+  error_message:
+    name: Error message
+    description: Text shown if triggering the action fails, e.g. because Home Assistant could not be reached.

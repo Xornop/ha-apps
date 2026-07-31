@@ -1,0 +1,31 @@
+name: "HA Gatekeeper"
+version: "1.0.0"
+slug: ha-gatekeeper
+description: "A link that triggers per-user Home Assistant binary_sensors, behind a login screen with long lasting access tokens, without giving visitors a real HA login"
+url: "https://github.com/xornop/ha-apps/ha-gatekeeper"
+arch:
+  - aarch64
+  - amd64
+  - armv7
+startup: application
+boot: auto
+init: false
+homeassistant_api: true
+ports:
+  8099/tcp: 8099
+ports_description:
+  8099/tcp: "Web UI / login portal"
+options:
+  users: []
+  session_days: 365
+  cookie_secure: true
+  success_message: "Action triggered ✅"
+  error_message: "Error. Notify an admin."
+schema:
+  users:
+    - name: str
+      password: password
+  session_days: int
+  cookie_secure: bool
+  success_message: str
+  error_message: str
