@@ -40,5 +40,4 @@ https://github.com/Xornop/ha-Apps
 If you encounter any issues or have feature requests, feel free to open an issue or submit a pull request in this repository.
 
 ## Disclaimer
-
-Don't use this to unlock doors or other stuff you don't want people to use/access. I can't promise the security of this app won't be compromised. Use at your own risk!
+Use at your own risk!
