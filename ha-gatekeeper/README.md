@@ -72,3 +72,8 @@ needed.
 - `ingress: false` (this add-on does *not* use HA ingress) because ingress
   requires an authenticated HA session in the browser, which defeats the
   purpose here — visitors are never meant to have HA accounts.
+
+## Disclaimer
+
+
+Don't use this to unlock doors or other stuff you don't want people to use/access. I can't promise the security of this app won't be compromised. Use at your own risk!
