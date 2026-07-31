@@ -38,3 +38,6 @@ https://github.com/Xornop/ha-Apps
 ## 🛠️ Support & Contributions
 
 If you encounter any issues or have feature requests, feel free to open an issue or submit a pull request in this repository.
+
+## Disclaimer
+Use at your own risk!
