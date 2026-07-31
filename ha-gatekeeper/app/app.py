@@ -33,7 +33,7 @@ def load_options():
     users = {u["name"]: u["password"] for u in opts.get("users", [])}
     session_days = opts.get("session_days", 365)
     cookie_secure = opts.get("cookie_secure", True)
-    success_message = opts.get("success_message", "Action triggered \u2705")
+    success_message = opts.get("success_message", "Actie getriggerd \u2705")
     error_message = opts.get("error_message", "Error. Notify an admin.")
     return users, session_days, cookie_secure, success_message, error_message
 
@@ -74,6 +74,12 @@ def create_session(username):
         )
         db.commit()
     return token
+
+
+def revoke_session(token):
+    with db_lock:
+        db.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        db.commit()
 
 
 def set_binary_sensor(username, state):
@@ -163,7 +169,7 @@ RESULT_HTML = """<!doctype html>
 
 def render_result(success):
     if success:
-        return RESULT_HTML.format(title="Succes", message=SUCCESS_MESSAGE, error_class="")
+        return RESULT_HTML.format(title="Gelukt", message=SUCCESS_MESSAGE, error_class="")
     return RESULT_HTML.format(title="Fout", message=ERROR_MESSAGE, error_class=" error")
 
 
@@ -172,6 +178,16 @@ def render_result(success):
 def trigger():
     token = request.cookies.get(COOKIE_NAME)
     username = username_for_token(token)
+    stale_cookie = False
+
+    if username and username not in USERS:
+        logger.warning(
+            "Rejected session for removed user '%s' (%s) — revoking token",
+            username, request.remote_addr,
+        )
+        revoke_session(token)
+        username = None
+        stale_cookie = True
 
     if username:
         ok = fire_and_reset(username)
@@ -183,7 +199,10 @@ def trigger():
         return render_result(ok), (200 if ok else 502)
 
     if request.method == "GET":
-        return LOGIN_HTML.format(error="")
+        resp = make_response(LOGIN_HTML.format(error=""))
+        if stale_cookie:
+            resp.delete_cookie(COOKIE_NAME)
+        return resp
 
     form_username = request.form.get("username", "").strip()
     form_password = request.form.get("password", "")
@@ -194,7 +213,10 @@ def trigger():
             form_username, request.remote_addr,
         )
         error = '<p class="error">Fout wachtwoord</p>'
-        return LOGIN_HTML.format(error=error), 401
+        resp = make_response(LOGIN_HTML.format(error=error), 401)
+        if stale_cookie:
+            resp.delete_cookie(COOKIE_NAME)
+        return resp
 
     new_token = create_session(form_username)
     ok = fire_and_reset(form_username)
