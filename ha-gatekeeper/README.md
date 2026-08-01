@@ -41,7 +41,7 @@ server.
        password: "another-strong-password"
    session_days: 365
    cookie_secure: true
-   success_message: "Actie getriggerd ✅"
+   success_message: "Action triggered ✅"
    error_message: "Error. Notify an admin."
    login_footer_text: ""
    ```
@@ -60,13 +60,9 @@ server.
 | `users` | list | `[]` | One entry per person, each with its own `name` and `password`. |
 | `session_days` | int | `365` | How many days a device stays logged in after a successful login. |
 | `cookie_secure` | bool | `true` | Marks the session cookie `secure`, requiring HTTPS to persist. Keep `true` in production; only set `false` for local/LAN-only testing over plain HTTP — see warning below. |
-| `success_message` | str | `"Actie getriggerd ✅"` | Text shown after a successful trigger. Emoji allowed. |
+| `success_message` | str | `"Action triggered ✅"` | Text shown after a successful trigger. Emoji allowed. |
 | `error_message` | str | `"Error. Notify an admin."` | Text shown if triggering the action fails (e.g. Home Assistant unreachable). |
 | `login_footer_text` | str | `""` | Optional Markdown text shown below the login form, in its own card. Leave empty to show nothing. Use a YAML `\|` block in the options editor if you need multiple lines. |
-
-Note: the rest of the login page's static text is in Dutch, but the
-"Remember me" checkbox label is hardcoded in English — edit
-`LOGIN_HTML` in `app/app.py` directly if you want it translated.
 
 ### `cookie_secure` warning
 
@@ -111,6 +107,21 @@ add-on's log tab), including the visitor's IP address:
 The add-on trusts `X-Forwarded-For`/`X-Forwarded-Proto` from one reverse
 proxy hop (via `ProxyFix`), so logs show the real visitor IP rather than
 your reverse proxy's internal IP.
+
+## Session lifetime, expiration & rotation
+
+- **Server-side expiration**: every session now has a real expiry stored in
+  `/data/sessions.db`, not just a cookie `Max-Age`. "Remember me" sessions
+  expire after `session_days`; sessions without "Remember me" expire after
+  12 hours server-side regardless of how long the browser keeps the cookie
+  around. Expired sessions are purged automatically on the next visit.
+- **Token rotation**: every time a saved session successfully triggers the
+  action, its token is replaced with a brand-new one (and the cookie is
+  updated in the response). The old token isn't deleted immediately — it
+  stays valid for **10 seconds** to absorb near-duplicate requests (double
+  clicks, proxy retries), then it stops working like any other expired
+  session. If a token is ever stolen and reused later, rotation limits how
+  long it stays useful to an attacker.
 
 ## Removing a user
 
