@@ -1,5 +1,5 @@
 name: "HA Gatekeeper"
-version: "2.1.0"
+version: "2.2.0"
 slug: ha-gatekeeper
 description: "Passworded, per-user links that trigger a Home Assistant binary_sensor without giving visitors a real HA login"
 url: "https://github.com/yourname/ha-addons"
