@@ -18,9 +18,6 @@ logging.basicConfig(
 logger = logging.getLogger("ha-gatekeeper")
 
 app = Flask(__name__)
-# Trust X-Forwarded-For/-Proto from the reverse proxy (e.g. NGINX Proxy
-# Manager) so request.remote_addr reflects the real visitor, not the proxy.
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 OPTIONS_PATH = "/data/options.json"
 DB_PATH = "/data/sessions.db"
@@ -56,6 +53,29 @@ def load_options():
     USERS, SESSION_DAYS, COOKIE_SECURE,
     SUCCESS_MESSAGE, ERROR_MESSAGE, LOGIN_FOOTER_TEXT,
 ) = load_options()
+
+# Trust proxy headers for scheme/host purposes (single hop is enough for
+# this, IP resolution below no longer depends on it).
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+
+def client_ip():
+    """Best-effort real visitor IP. Prefers Cloudflare's own header (set
+    directly from the actual edge connection, so it doesn't depend on
+    counting proxy hops). Otherwise walks X-Forwarded-For all the way back
+    to its left-most (oldest / original) entry. Falls back to the direct
+    connecting IP if neither header is present.
+
+    Note: X-Forwarded-For can in principle be spoofed by a client that
+    connects directly to your reverse proxy without going through
+    Cloudflare, if that proxy appends to rather than replaces an existing
+    header. Fine for logging/visibility; don't use this for access control."""
+    if "CF-Connecting-IP" in request.headers:
+        return request.headers["CF-Connecting-IP"]
+    xff = request.headers.get("X-Forwarded-For")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.remote_addr
 
 LOGIN_FOOTER_HTML = (
     markdown.markdown(LOGIN_FOOTER_TEXT) if LOGIN_FOOTER_TEXT.strip() else ""
@@ -308,7 +328,7 @@ def trigger():
     if username and username not in USERS:
         logger.warning(
             "Rejected session for removed user '%s' (%s) — revoking token",
-            username, request.remote_addr,
+            username, client_ip(),
         )
         revoke_session(token)
         username = None
@@ -316,7 +336,7 @@ def trigger():
     elif username and session["pw_fingerprint"] != _pw_fingerprint(USERS[username]):
         logger.warning(
             "Rejected session for '%s' (%s) — password changed, revoking token",
-            username, request.remote_addr,
+            username, client_ip(),
         )
         revoke_session(token)
         username = None
@@ -328,7 +348,7 @@ def trigger():
         if ok:
             logger.info(
                 "Triggered by '%s' via saved session (%s)",
-                username, request.remote_addr,
+                username, client_ip(),
             )
         resp = make_response(render_result(ok), 200 if ok else 502)
         if rotated:
@@ -355,7 +375,7 @@ def trigger():
     if USERS.get(form_username) != form_password:
         logger.warning(
             "Failed login attempt for username '%s' from %s",
-            form_username, request.remote_addr,
+            form_username, client_ip(),
         )
         error = '<p class="error">Incorrect password</p>'
         resp = make_response(LOGIN_HTML.format(error=error, footer=LOGIN_FOOTER_HTML), 401)
@@ -369,7 +389,7 @@ def trigger():
     if ok:
         logger.info(
             "Triggered by '%s' via new login (%s, remember_me=%s)",
-            form_username, request.remote_addr, remember_me,
+            form_username, client_ip(), remember_me,
         )
 
     resp = make_response(render_result(ok), 200 if ok else 502)
