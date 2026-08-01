@@ -26,6 +26,8 @@ DB_PATH = "/data/sessions.db"
 CORE_API = "http://supervisor/core/api"
 SUPERVISOR_TOKEN = os.environ.get("SUPERVISOR_TOKEN", "")
 COOKIE_NAME = "lt_token"
+NON_REMEMBER_EXPIRY_SECONDS = 12 * 3600  # server-side cap for un-remembered sessions
+ROTATION_GRACE_SECONDS = 10  # old token stays valid this long after rotation
 
 
 def load_options():
@@ -61,31 +63,84 @@ if not COOKIE_SECURE:
 db = sqlite3.connect(DB_PATH, check_same_thread=False)
 db.execute(
     "CREATE TABLE IF NOT EXISTS sessions ("
-    "token TEXT PRIMARY KEY, username TEXT, created_at INTEGER)"
+    "token TEXT PRIMARY KEY, username TEXT, created_at INTEGER, "
+    "expires_at INTEGER, remember INTEGER)"
 )
+# Lightweight migration for installs upgrading from the earlier schema
+existing_cols = {row[1] for row in db.execute("PRAGMA table_info(sessions)")}
+if "expires_at" not in existing_cols:
+    db.execute("ALTER TABLE sessions ADD COLUMN expires_at INTEGER")
+if "remember" not in existing_cols:
+    db.execute("ALTER TABLE sessions ADD COLUMN remember INTEGER")
 db.commit()
 db_lock = threading.Lock()
 
 
-def username_for_token(token):
+def _expiry_for(remember):
+    now = int(time.time())
+    if remember:
+        return now + SESSION_DAYS * 86400
+    return now + NON_REMEMBER_EXPIRY_SECONDS
+
+
+def get_session(token):
+    """Look up a token, purging expired sessions along the way.
+    Returns {"username", "remember"} or None."""
     if not token:
         return None
+    now = int(time.time())
     with db_lock:
+        db.execute("DELETE FROM sessions WHERE expires_at < ?", (now,))
         row = db.execute(
-            "SELECT username FROM sessions WHERE token = ?", (token,)
+            "SELECT username, remember FROM sessions WHERE token = ?", (token,)
         ).fetchone()
-    return row[0] if row else None
+        db.commit()
+    if not row:
+        return None
+    username, remember = row
+    return {"username": username, "remember": bool(remember)}
 
 
-def create_session(username):
+def create_session(username, remember):
     token = secrets.token_urlsafe(32)
+    expires_at = _expiry_for(remember)
     with db_lock:
         db.execute(
-            "INSERT INTO sessions (token, username, created_at) VALUES (?, ?, ?)",
-            (token, username, int(time.time())),
+            "INSERT INTO sessions (token, username, created_at, expires_at, remember) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (token, username, int(time.time()), expires_at, int(bool(remember))),
         )
         db.commit()
-    return token
+    return token, expires_at
+
+
+def rotate_session(old_token):
+    """Issue a fresh token for the same session. The old token stays valid
+    for ROTATION_GRACE_SECONDS to absorb near-duplicate requests, then
+    expires like any other session. Returns (new_token, new_expiry, remember)
+    or None if old_token wasn't a valid session."""
+    now = int(time.time())
+    with db_lock:
+        row = db.execute(
+            "SELECT username, remember FROM sessions WHERE token = ?", (old_token,)
+        ).fetchone()
+        if not row:
+            return None
+        username, remember = row
+        new_token = secrets.token_urlsafe(32)
+        new_expiry = _expiry_for(bool(remember))
+        db.execute(
+            "INSERT INTO sessions (token, username, created_at, expires_at, remember) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (new_token, username, now, new_expiry, remember),
+        )
+        # Never extend the old token's validity, only shorten it to the grace window
+        db.execute(
+            "UPDATE sessions SET expires_at = MIN(expires_at, ?) WHERE token = ?",
+            (now + ROTATION_GRACE_SECONDS, old_token),
+        )
+        db.commit()
+    return new_token, new_expiry, bool(remember)
 
 
 def revoke_session(token):
@@ -203,7 +258,8 @@ def render_result(success):
 @app.route("/trigger", methods=["GET", "POST"])
 def trigger():
     token = request.cookies.get(COOKIE_NAME)
-    username = username_for_token(token)
+    session = get_session(token)
+    username = session["username"] if session else None
     stale_cookie = False
 
     if username and username not in USERS:
@@ -216,13 +272,25 @@ def trigger():
         stale_cookie = True
 
     if username:
+        rotated = rotate_session(token)
         ok = fire_and_reset(username)
         if ok:
             logger.info(
                 "Triggered by '%s' via saved session (%s)",
                 username, request.remote_addr,
             )
-        return render_result(ok), (200 if ok else 502)
+        resp = make_response(render_result(ok), 200 if ok else 502)
+        if rotated:
+            new_token, new_expiry, remember = rotated
+            resp.set_cookie(
+                COOKIE_NAME,
+                new_token,
+                max_age=(new_expiry - int(time.time())) if remember else None,
+                httponly=True,
+                secure=COOKIE_SECURE,
+                samesite="Lax",
+            )
+        return resp
 
     if request.method == "GET":
         resp = make_response(LOGIN_HTML.format(error="", footer=LOGIN_FOOTER_HTML))
@@ -244,21 +312,20 @@ def trigger():
             resp.delete_cookie(COOKIE_NAME)
         return resp
 
-    new_token = create_session(form_username)
+    remember_me = request.form.get("remember") == "on"
+    new_token, expires_at = create_session(form_username, remember_me)
     ok = fire_and_reset(form_username)
     if ok:
         logger.info(
             "Triggered by '%s' via new login (%s, remember_me=%s)",
-            form_username, request.remote_addr,
-            request.form.get("remember") == "on",
+            form_username, request.remote_addr, remember_me,
         )
 
-    remember_me = request.form.get("remember") == "on"
     resp = make_response(render_result(ok), 200 if ok else 502)
     resp.set_cookie(
         COOKIE_NAME,
         new_token,
-        max_age=(SESSION_DAYS * 86400) if remember_me else None,
+        max_age=(expires_at - int(time.time())) if remember_me else None,
         httponly=True,
         secure=COOKIE_SECURE,
         samesite="Lax",
