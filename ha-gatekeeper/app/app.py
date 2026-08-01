@@ -1,3 +1,4 @@
+import hashlib
 import json
 import logging
 import os
@@ -26,6 +27,12 @@ DB_PATH = "/data/sessions.db"
 CORE_API = "http://supervisor/core/api"
 SUPERVISOR_TOKEN = os.environ.get("SUPERVISOR_TOKEN", "")
 COOKIE_NAME = "lt_token"
+
+
+def _pw_fingerprint(password):
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+
+
 NON_REMEMBER_EXPIRY_SECONDS = 12 * 3600  # server-side cap for un-remembered sessions
 ROTATION_GRACE_SECONDS = 10  # old token stays valid this long after rotation
 
@@ -64,16 +71,43 @@ db = sqlite3.connect(DB_PATH, check_same_thread=False)
 db.execute(
     "CREATE TABLE IF NOT EXISTS sessions ("
     "token TEXT PRIMARY KEY, username TEXT, created_at INTEGER, "
-    "expires_at INTEGER, remember INTEGER)"
+    "expires_at INTEGER, remember INTEGER, pw_fingerprint TEXT)"
 )
-# Lightweight migration for installs upgrading from the earlier schema
+# Lightweight migration for installs upgrading from an earlier schema
 existing_cols = {row[1] for row in db.execute("PRAGMA table_info(sessions)")}
 if "expires_at" not in existing_cols:
     db.execute("ALTER TABLE sessions ADD COLUMN expires_at INTEGER")
 if "remember" not in existing_cols:
     db.execute("ALTER TABLE sessions ADD COLUMN remember INTEGER")
+if "pw_fingerprint" not in existing_cols:
+    db.execute("ALTER TABLE sessions ADD COLUMN pw_fingerprint TEXT")
 db.commit()
 db_lock = threading.Lock()
+
+
+def _purge_sessions_for_unknown_users():
+    """Run once at startup: delete every stored session whose username
+    isn't currently configured. Combined with restarting once while a user
+    is absent, this guarantees old tokens are gone for good — even if no
+    one visited the link during the window the user was missing."""
+    with db_lock:
+        if USERS:
+            placeholders = ",".join("?" for _ in USERS)
+            deleted = db.execute(
+                f"DELETE FROM sessions WHERE username NOT IN ({placeholders})",
+                tuple(USERS.keys()),
+            ).rowcount
+        else:
+            deleted = db.execute("DELETE FROM sessions").rowcount
+        db.commit()
+    if deleted:
+        logger.info(
+            "Startup cleanup: purged %d session(s) for users no longer configured",
+            deleted,
+        )
+
+
+_purge_sessions_for_unknown_users()
 
 
 def _expiry_for(remember):
@@ -85,30 +119,37 @@ def _expiry_for(remember):
 
 def get_session(token):
     """Look up a token, purging expired sessions along the way.
-    Returns {"username", "remember"} or None."""
+    Returns {"username", "remember", "pw_fingerprint"} or None."""
     if not token:
         return None
     now = int(time.time())
     with db_lock:
         db.execute("DELETE FROM sessions WHERE expires_at < ?", (now,))
         row = db.execute(
-            "SELECT username, remember FROM sessions WHERE token = ?", (token,)
+            "SELECT username, remember, pw_fingerprint FROM sessions WHERE token = ?",
+            (token,),
         ).fetchone()
         db.commit()
     if not row:
         return None
-    username, remember = row
-    return {"username": username, "remember": bool(remember)}
+    username, remember, pw_fingerprint = row
+    return {
+        "username": username,
+        "remember": bool(remember),
+        "pw_fingerprint": pw_fingerprint,
+    }
 
 
 def create_session(username, remember):
     token = secrets.token_urlsafe(32)
     expires_at = _expiry_for(remember)
+    fingerprint = _pw_fingerprint(USERS[username])
     with db_lock:
         db.execute(
-            "INSERT INTO sessions (token, username, created_at, expires_at, remember) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (token, username, int(time.time()), expires_at, int(bool(remember))),
+            "INSERT INTO sessions "
+            "(token, username, created_at, expires_at, remember, pw_fingerprint) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (token, username, int(time.time()), expires_at, int(bool(remember)), fingerprint),
         )
         db.commit()
     return token, expires_at
@@ -122,17 +163,19 @@ def rotate_session(old_token):
     now = int(time.time())
     with db_lock:
         row = db.execute(
-            "SELECT username, remember FROM sessions WHERE token = ?", (old_token,)
+            "SELECT username, remember, pw_fingerprint FROM sessions WHERE token = ?",
+            (old_token,),
         ).fetchone()
         if not row:
             return None
-        username, remember = row
+        username, remember, fingerprint = row
         new_token = secrets.token_urlsafe(32)
         new_expiry = _expiry_for(bool(remember))
         db.execute(
-            "INSERT INTO sessions (token, username, created_at, expires_at, remember) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (new_token, username, now, new_expiry, remember),
+            "INSERT INTO sessions "
+            "(token, username, created_at, expires_at, remember, pw_fingerprint) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (new_token, username, now, new_expiry, remember, fingerprint),
         )
         # Never extend the old token's validity, only shorten it to the grace window
         db.execute(
@@ -265,6 +308,14 @@ def trigger():
     if username and username not in USERS:
         logger.warning(
             "Rejected session for removed user '%s' (%s) — revoking token",
+            username, request.remote_addr,
+        )
+        revoke_session(token)
+        username = None
+        stale_cookie = True
+    elif username and session["pw_fingerprint"] != _pw_fingerprint(USERS[username]):
+        logger.warning(
+            "Rejected session for '%s' (%s) — password changed, revoking token",
             username, request.remote_addr,
         )
         revoke_session(token)
