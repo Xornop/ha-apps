@@ -1,0 +1,57 @@
+---
+name: "slskd"
+version: "0.24.5-1"
+slug: "slskd"
+stage: "experimental"
+description: "A modern, self-hosted web client for the Soulseek peer-to-peer file-sharing network"
+url: "https://github.com/Xornop/ha-apps/tree/main/slskd"
+arch:
+  - amd64
+  - aarch64
+  - armv7
+init: false
+startup: services
+boot: auto
+hassio_api: false
+homeassistant_api: false
+host_network: false
+map:
+  - share:rw
+  - media:rw
+ports:
+  5030/tcp: 5030
+  50300/tcp: 50300
+ports_description:
+  5030/tcp: "slskd web UI / API (opened by the 'Open Web UI' button)"
+  50300/tcp: "Soulseek peer listen port - forward this on your router for the best search/download connectivity"
+webui: "http://[HOST]:[PORT:5030]"
+options:
+  slsk_username: ""
+  slsk_password: ""
+  web_username: "slskd"
+  web_password: "slskd"
+  listen_port: 50300
+  shared_directories:
+    - "/share/slskd/music"
+  downloads_directory: ""
+  incomplete_directory: ""
+  upload_slots: 20
+  upload_speed_limit: 0
+  download_speed_limit: 0
+  remote_configuration: false
+  diagnostic_level: "Info"
+schema:
+  slsk_username: str
+  slsk_password: password
+  web_username: str
+  web_password: password
+  listen_port: port
+  shared_directories:
+    - str
+  downloads_directory: str?
+  incomplete_directory: str?
+  upload_slots: int(1,1000)
+  upload_speed_limit: int(0,)
+  download_speed_limit: int(0,)
+  remote_configuration: bool
+  diagnostic_level: list(None|Warning|Info|Debug)
