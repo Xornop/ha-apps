@@ -2,7 +2,7 @@ FROM debian:bookworm-slim
 
 # Pin to a specific slskd GitHub release. Bump this to track new releases:
 # https://github.com/slskd/slskd/releases
-ARG SLSKD_VERSION="0.24.5"
+ARG SLSKD_VERSION="0.26.0"
 ARG TARGETARCH
 
 RUN apt-get update && \
@@ -12,6 +12,10 @@ RUN apt-get update && \
         jq \
         unzip \
         libssl3 \
+        wireguard-tools \
+        openresolv \
+        iptables \
+        iproute2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Map Docker's TARGETARCH to slskd's release asset naming (.NET RIDs) and

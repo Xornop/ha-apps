@@ -1,9 +1,8 @@
 ---
 name: "slskd"
-version: "0.24.5-1"
+version: "0.26.0"
 slug: "slskd"
-stage: "experimental"
-description: "A modern, self-hosted web client for the Soulseek peer-to-peer file-sharing network"
+description: "A modern, self-hosted web client for the Soulseek peer-to-peer file-sharing network, with optional WireGuard VPN"
 url: "https://github.com/Xornop/ha-apps/tree/main/slskd"
 arch:
   - amd64
@@ -15,6 +14,11 @@ boot: auto
 hassio_api: false
 homeassistant_api: false
 host_network: false
+apparmor: false
+devices:
+  - /dev/net/tun
+privileged:
+  - NET_ADMIN
 map:
   - share:rw
   - media:rw
@@ -23,7 +27,7 @@ ports:
   50300/tcp: 50300
 ports_description:
   5030/tcp: "slskd web UI / API (opened by the 'Open Web UI' button)"
-  50300/tcp: "Soulseek peer listen port - forward this on your router for the best search/download connectivity"
+  50300/tcp: "Soulseek peer listen port"
 webui: "http://[HOST]:[PORT:5030]"
 options:
   slsk_username: ""
@@ -33,13 +37,20 @@ options:
   listen_port: 50300
   shared_directories:
     - "/share/slskd/music"
-  downloads_directory: ""
+  downloads_directory: "/share/slskd/downloads"
   incomplete_directory: ""
   upload_slots: 20
   upload_speed_limit: 0
   download_speed_limit: 0
   remote_configuration: false
   diagnostic_level: "Info"
+  vpn_enabled: true
+  wg_private_key: ""
+  wg_address: ""
+  wg_dns: ""
+  wg_peer_public_key: ""
+  wg_peer_endpoint: ""
+  wg_allowed_ips: "0.0.0.0/0, ::/0"
 schema:
   slsk_username: str
   slsk_password: password
@@ -55,3 +66,10 @@ schema:
   download_speed_limit: int(0,)
   remote_configuration: bool
   diagnostic_level: list(None|Warning|Info|Debug)
+  vpn_enabled: bool
+  wg_private_key: password?
+  wg_address: str?
+  wg_dns: str?
+  wg_peer_public_key: str?
+  wg_peer_endpoint: str?
+  wg_allowed_ips: str?
