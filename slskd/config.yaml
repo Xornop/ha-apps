@@ -2,6 +2,7 @@
 name: "slskd"
 version: "0.24.5-1"
 slug: "slskd"
+stage: "experimental"
 description: "A modern, self-hosted web client for the Soulseek peer-to-peer file-sharing network"
 url: "https://github.com/Xornop/ha-apps/tree/main/slskd"
 arch:
