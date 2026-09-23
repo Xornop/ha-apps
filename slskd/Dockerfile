@@ -13,8 +13,7 @@ RUN apt-get update && \
         unzip \
         libssl3 \
         wireguard-tools \
-        openresolv \
-        iptables \
+        dante-server \
         iproute2 \
     && rm -rf /var/lib/apt/lists/*
 
