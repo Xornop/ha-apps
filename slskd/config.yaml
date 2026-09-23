@@ -19,6 +19,7 @@ devices:
   - /dev/net/tun
 privileged:
   - NET_ADMIN
+  - SYS_MODULE
 map:
   - share:rw
   - media:rw
@@ -47,7 +48,6 @@ options:
   vpn_enabled: true
   wg_private_key: ""
   wg_address: ""
-  wg_dns: ""
   wg_peer_public_key: ""
   wg_peer_endpoint: ""
   wg_allowed_ips: "0.0.0.0/0, ::/0"
@@ -69,7 +69,6 @@ schema:
   vpn_enabled: bool
   wg_private_key: password?
   wg_address: str?
-  wg_dns: str?
   wg_peer_public_key: str?
   wg_peer_endpoint: str?
   wg_allowed_ips: str?
