@@ -15,8 +15,8 @@ A curated collection of custom Apps designed to extend the capabilities of your 
 | **Whisper Pro ASR** | Basically the same as above, but this adds a couple features like chunking to save on RAM usage. Has not been stress tested but works fine |
 | **Prefetcharr** | Automatically search for the next season of a TV series in Sonarr as soon as you reach the end of the currently downloaded season. |
 | **Gluetun** | A secure VPN/Wireguard routing service, optimized for seamless integration with `*arr` stacks. |
-| **HA Gatekeeper*** | Provides a web adress that a non-HA user can visit to trigger an action in your home - with login and long lived access tokens |
-| **slskd*** | A client for the Soulseek peer-to-peer network with a web UI and REST API. Optionally routes Soulseek traffic through a WireGuard VPN via a local SOCKS5 proxy. |
+| **HA Gatekeeper** | Provides a web adress that a non-HA user can visit to trigger an action in your home - with login and long lived access tokens |
+| **slskd** | A client for the Soulseek peer-to-peer network with a web UI and REST API. Optionally routes Soulseek traffic through a WireGuard VPN via a local SOCKS5 proxy. |
 
 ---
 
