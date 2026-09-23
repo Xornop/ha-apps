@@ -16,6 +16,7 @@ A curated collection of custom Apps designed to extend the capabilities of your 
 | **Prefetcharr** | Automatically search for the next season of a TV series in Sonarr as soon as you reach the end of the currently downloaded season. |
 | **Gluetun** | A secure VPN/Wireguard routing service, optimized for seamless integration with `*arr` stacks. |
 | **HA Gatekeeper*** | Provides a web adress that a non-HA user can visit to trigger an action in your home - with login and long lived access tokens |
+| **slskd*** | A client for the Soulseek peer-to-peer network with a web UI and REST API. Optionally routes Soulseek traffic through a WireGuard VPN via a local SOCKS5 proxy. |
 
 ---
 
