@@ -38,8 +38,10 @@ RUN set -eu; \
 # Avoid needing libicu for culture-specific behaviour we don't use.
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
 # slskd writes its config (slskd.yml), logs and SQLite db under APP_DIR.
-# Pointing this at /data means it all lives on the add-on's persistent volume.
-ENV APP_DIR=/data
+# Pointing this at /config (the addon_config map) means it lands under
+# /addon_configs/local_slskd on the host - reachable via SFTP/File Browser-
+# style tools that expose addon_configs, unlike the add-on's own /data.
+ENV APP_DIR=/config
 
 COPY run.sh /run.sh
 RUN chmod +x /run.sh

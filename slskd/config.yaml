@@ -23,6 +23,7 @@ privileged:
 map:
   - share:rw
   - media:rw
+  - addon_config:rw
 ports:
   5030/tcp: 5030
   50300/tcp: 50300

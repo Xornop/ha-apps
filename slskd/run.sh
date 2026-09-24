@@ -106,9 +106,19 @@ try_portforward_natpmp() {
     echo "${port}"
 }
 
+# Renewal now mirrors the initial request: it's timeout-guarded (so a
+# hung natpmpc can't silently wedge the renewal loop) and its output is
+# always logged, so a failure shows *why* instead of just "failed".
 renew_portforward_natpmp() {
     local gw="$1" port="$2"
-    natpmpc -a 1 "${port}" tcp 60 -g "${gw}" > /dev/null 2>&1
+    local out
+    if out=$(timeout 20 natpmpc -a 1 "${port}" tcp 60 -g "${gw}" 2>&1); then
+        echo "${out}" | sed 's/^/[slskd-addon][natpmp-renew] /' >&2
+        return 0
+    else
+        echo "${out}" | sed 's/^/[slskd-addon][natpmp-renew] /' >&2
+        return 1
+    fi
 }
 
 request_port_forward() {
@@ -241,10 +251,31 @@ DANTED_EOF
             export SLSKD_SLSK_LISTEN_PORT="${FORWARDED_PORT}"
             if [ "${PORT_FORWARD_METHOD}" = "natpmp" ]; then
                 (
+                    FAIL_STREAK=0
                     while true; do
                         sleep 45
-                        renew_portforward_natpmp "${WG_GATEWAY}" "${FORWARDED_PORT}" > /dev/null 2>&1 \
-                            || echo "[slskd-addon][portfwd] WARNING: NAT-PMP renewal failed - forwarded port may drop." >&2
+                        if renew_portforward_natpmp "${WG_GATEWAY}" "${FORWARDED_PORT}" > /dev/null; then
+                            FAIL_STREAK=0
+                        else
+                            FAIL_STREAK=$((FAIL_STREAK + 1))
+                            echo "[slskd-addon][portfwd] WARNING: NAT-PMP renewal failed (attempt ${FAIL_STREAK}) - forwarded port may drop. See [natpmp-renew] lines above for the reason." >&2
+                            # After 3 consecutive failures (~2-3 min), the mapping
+                            # has almost certainly expired server-side. Stop
+                            # trying to "renew" a dead mapping and request a
+                            # fresh one instead - covers cases like a brief wg0
+                            # handshake drop or the gateway rotating mappings.
+                            if [ "${FAIL_STREAK}" -ge 3 ]; then
+                                echo "[slskd-addon][portfwd] re-requesting a fresh NAT-PMP mapping after ${FAIL_STREAK} failed renewals..." >&2
+                                NEW_PORT=$(try_portforward_natpmp "${WG_GATEWAY}") || NEW_PORT=""
+                                if [ -n "${NEW_PORT}" ]; then
+                                    echo "[slskd-addon][portfwd] re-acquired mapping: port ${NEW_PORT}/tcp. Note: slskd's listen port is not updated at runtime - restart the add-on to pick up ${NEW_PORT} if it differs from ${FORWARDED_PORT}." >&2
+                                    FORWARDED_PORT="${NEW_PORT}"
+                                    FAIL_STREAK=0
+                                else
+                                    echo "[slskd-addon][portfwd] re-acquisition also failed - will keep retrying every 45s." >&2
+                                fi
+                            fi
+                        fi
                     done
                 ) &
                 NATPMP_RENEW_PID=$!
@@ -294,6 +325,10 @@ echo "[slskd-addon] shared directories: ${SLSKD_SHARED_DIR:-<none set>}"
 echo "[slskd-addon] soulseek listen port: ${SLSKD_SLSK_LISTEN_PORT}"
 echo "[slskd-addon] starting slskd..."
 
-/app/slskd &
+# The APP_DIR env var alone hasn't been reliably picked up by slskd in
+# testing, so pass it explicitly via --app-dir too (command-line args take
+# the highest precedence per slskd's own config source hierarchy, so this
+# is guaranteed to win regardless of why the env var isn't landing).
+/app/slskd --app-dir "${APP_DIR:-/config}" &
 SLSKD_PID=$!
 wait "${SLSKD_PID}"
