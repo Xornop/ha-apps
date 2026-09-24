@@ -46,6 +46,8 @@ options:
   remote_configuration: false
   diagnostic_level: "Info"
   vpn_enabled: true
+  port_forward_method: "natpmp"
+  wg_natpmp_gateway: ""
   wg_private_key: ""
   wg_address: ""
   wg_peer_public_key: ""
@@ -67,6 +69,8 @@ schema:
   remote_configuration: bool
   diagnostic_level: list(None|Warning|Info|Debug)
   vpn_enabled: bool
+  port_forward_method: list(none|natpmp)
+  wg_natpmp_gateway: str?
   wg_private_key: password?
   wg_address: str?
   wg_peer_public_key: str?

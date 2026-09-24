@@ -38,6 +38,9 @@ WG_PEER_PUBLIC_KEY=$(opt '.wg_peer_public_key')
 WG_PEER_ENDPOINT=$(opt '.wg_peer_endpoint')
 WG_ALLOWED_IPS=$(opt '.wg_allowed_ips')
 
+PORT_FORWARD_METHOD=$(opt '.port_forward_method')
+NATPMP_GATEWAY_OVERRIDE=$(opt '.wg_natpmp_gateway')
+
 export SLSKD_SLSK_USERNAME="${SLSK_USERNAME}"
 export SLSKD_SLSK_PASSWORD="${SLSK_PASSWORD}"
 export SLSKD_USERNAME="${WEB_USERNAME}"
@@ -79,6 +82,51 @@ done <<< "$(jq -r '.shared_directories[]' "$CONFIG_PATH")"
 # route juggling: if wg0/danted ever goes down, slskd's proxy connection
 # simply fails closed instead of falling back to a direct connection.
 DANTED_PID=""
+NATPMP_RENEW_PID=""
+WG_OWN_IP=""
+WG_GATEWAY=""
+
+# --- Port forwarding backend abstraction -----------------------------------
+# Provider-agnostic by design. Each supported method gets its own
+# try_portforward_<method>() function that echoes the forwarded port on
+# stdout and returns non-zero on failure. To add a provider-specific
+# method later (e.g. a PIA/AirVPN API), write a new function following
+# this contract and add a case for it in request_port_forward().
+
+# NAT-PMP - not tied to any single provider, works with any gateway that
+# answers NAT-PMP requests (this is how ProtonVPN's WireGuard gateways
+# happen to support it, but the protocol itself is generic).
+try_portforward_natpmp() {
+    local gw="$1"
+    local out port
+    out=$(timeout 20 natpmpc -a 1 0 tcp 60 -g "${gw}" 2>&1) || true
+    echo "${out}" | sed 's/^/[slskd-addon][natpmp] /' >&2
+    port=$(echo "${out}" | grep -oP 'Mapped public port \K[0-9]+' | head -n1)
+    [ -n "${port}" ] || return 1
+    echo "${port}"
+}
+
+renew_portforward_natpmp() {
+    local gw="$1" port="$2"
+    natpmpc -a 1 "${port}" tcp 60 -g "${gw}" > /dev/null 2>&1
+}
+
+request_port_forward() {
+    local gw="$1"
+    case "${PORT_FORWARD_METHOD}" in
+        natpmp)
+            try_portforward_natpmp "${gw}"
+            ;;
+        none|""|null)
+            return 1
+            ;;
+        *)
+            echo "[slskd-addon][portfwd] WARNING: unknown port_forward_method '${PORT_FORWARD_METHOD}', skipping port forwarding." >&2
+            return 1
+            ;;
+    esac
+}
+# -----------------------------------------------------------------------------
 
 start_vpn() {
     mkdir -p "$(dirname "${WG_CONF}")"
@@ -115,6 +163,7 @@ start_vpn() {
         is_ipv4 "${ADDR}" || { echo "[slskd-addon] skipping non-IPv4 address: ${ADDR}"; continue; }
         if ip address add "${ADDR}" dev wg0; then
             ADDRESS_ASSIGNED=true
+            WG_OWN_IP="${ADDR%%/*}"
         else
             echo "[slskd-addon] ERROR: failed to assign ${ADDR} to wg0." >&2
             ip link delete wg0 2>/dev/null || true
@@ -129,7 +178,6 @@ start_vpn() {
 
     ip link set mtu 1420 up dev wg0
 
-    WG_OWN_IP="${WG_ADDRESSES[0]%%/*}"
     ip route add default dev wg0 table 200
     ip rule add from "${WG_OWN_IP}" table 200
 
@@ -168,9 +216,49 @@ DANTED_EOF
     export SLSKD_SOULSEEK_CONNECTION_PROXY_PORT="1080"
 
     echo "[slskd-addon] SOCKS5 proxy up on 127.0.0.1:1080 via wg0 - slskd's Soulseek connection will use it. Web UI/DNS stay on the normal network."
+
+    # Inbound port forwarding is optional and provider-agnostic. It never
+    # blocks startup or fails the VPN: if it doesn't work, we just log a
+    # warning and keep the static listen_port. Outbound traffic (and the
+    # "no leaks" guarantee) is unaffected either way.
+    if [ "${PORT_FORWARD_METHOD}" = "none" ] || [ -z "${PORT_FORWARD_METHOD}" ] || [ "${PORT_FORWARD_METHOD}" = "null" ]; then
+        echo "[slskd-addon][portfwd] disabled (port_forward_method=none) - using static listen_port ${SLSKD_SLSK_LISTEN_PORT}."
+    else
+        if [ -n "${NATPMP_GATEWAY_OVERRIDE}" ] && [ "${NATPMP_GATEWAY_OVERRIDE}" != "null" ] && is_ipv4 "${NATPMP_GATEWAY_OVERRIDE}"; then
+            WG_GATEWAY="${NATPMP_GATEWAY_OVERRIDE}"
+            echo "[slskd-addon][portfwd] using configured gateway override: ${WG_GATEWAY}"
+        else
+            WG_GATEWAY="${WG_OWN_IP%.*}.1"
+            echo "[slskd-addon][portfwd] no wg_natpmp_gateway set, assuming provider default gateway: ${WG_GATEWAY} (set wg_natpmp_gateway if your provider uses a different one)"
+        fi
+        ip route add "${WG_GATEWAY}/32" dev wg0 2>/dev/null || true
+
+        echo "[slskd-addon][portfwd] requesting inbound port forward via ${PORT_FORWARD_METHOD} (gateway ${WG_GATEWAY})..."
+        FORWARDED_PORT=$(request_port_forward "${WG_GATEWAY}") || FORWARDED_PORT=""
+
+        if [ -n "${FORWARDED_PORT}" ]; then
+            echo "[slskd-addon][portfwd] SUCCESS - forwarded port ${FORWARDED_PORT}/tcp, incoming connections (uploads) now go through the VPN too."
+            export SLSKD_SLSK_LISTEN_PORT="${FORWARDED_PORT}"
+            if [ "${PORT_FORWARD_METHOD}" = "natpmp" ]; then
+                (
+                    while true; do
+                        sleep 45
+                        renew_portforward_natpmp "${WG_GATEWAY}" "${FORWARDED_PORT}" > /dev/null 2>&1 \
+                            || echo "[slskd-addon][portfwd] WARNING: NAT-PMP renewal failed - forwarded port may drop." >&2
+                    done
+                ) &
+                NATPMP_RENEW_PID=$!
+            fi
+        else
+            echo "[slskd-addon][portfwd] WARNING: no forwarded port obtained via ${PORT_FORWARD_METHOD} (provider may not support it, or wg_natpmp_gateway is wrong). Outbound Soulseek traffic still goes through the VPN and nothing leaks, but incoming connections (uploads) likely won't work." >&2
+        fi
+    fi
 }
 
 stop_vpn() {
+    if [ -n "${NATPMP_RENEW_PID}" ]; then
+        kill "${NATPMP_RENEW_PID}" 2>/dev/null || true
+    fi
     if [ -n "${DANTED_PID}" ]; then
         kill "${DANTED_PID}" 2>/dev/null || true
     fi

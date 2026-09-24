@@ -14,6 +14,7 @@ RUN apt-get update && \
         libssl3 \
         wireguard-tools \
         dante-server \
+        natpmpc \
         iproute2 \
     && rm -rf /var/lib/apt/lists/*
 
