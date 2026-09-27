@@ -29,7 +29,7 @@ options:
   bind_host: "auto"
   trusted_proxy_ips: "127.0.0.1,::1"
   tz: "Etc/UTC"
-  slskd_downloads_path: "/media/Muziek"
+  slskd_downloads_path: "/media/slskd/downloads"
 schema:
   puid: int
   pgid: int
