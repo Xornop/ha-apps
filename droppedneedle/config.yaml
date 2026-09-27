@@ -1,0 +1,40 @@
+name: "DroppedNeedle"
+version: "1.0.0"
+slug: droppedneedle
+description: >-
+  Self-hosted music requests and discovery. Search the MusicBrainz catalogue,
+  request albums or tracks, and let your own download client (slskd or
+  SABnzbd) fetch, verify, and shelve them into your library.
+url: "https://github.com/Xornop/ha-apps/tree/main/droppedneedle"
+arch:
+  - amd64
+  - aarch64
+init: false
+startup: services
+boot: auto
+ports:
+  8688/tcp: 8688
+ports_description:
+  8688/tcp: "DroppedNeedle web UI"
+webui: "http://[HOST]:[PORT:8688]"
+panel_icon: mdi:record-player
+map:
+  - share:rw
+  - media:rw
+  - addon_config:rw
+options:
+  puid: 0
+  pgid: 0
+  umask: "027"
+  bind_host: "auto"
+  trusted_proxy_ips: "127.0.0.1,::1"
+  tz: "Etc/UTC"
+  slskd_downloads_path: "/media/Muziek"
+schema:
+  puid: int
+  pgid: int
+  umask: str
+  bind_host: str
+  trusted_proxy_ips: str
+  tz: str
+  slskd_downloads_path: str
