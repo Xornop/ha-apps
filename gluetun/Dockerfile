@@ -1,5 +1,5 @@
-ARG BUILD_FROM
-FROM $BUILD_FROM
+ARG BUILD_FROM=ghcr.io/home-assistant/base:latest
+FROM ${BUILD_FROM}
 
 RUN apk add --no-cache --update \
     go \
@@ -29,11 +29,10 @@ RUN git clone --depth 1 --branch ${GLUETUN_VERSION} https://github.com/qdm12/glu
 
 RUN mkdir -p /gluetun
 
-COPY run.sh /addon/run.sh
-COPY s6-services/ /etc/services.d/
-RUN chmod a+x /addon/run.sh /etc/services.d/*/run
+COPY run.sh /etc/services.d/gluetun/run
+RUN chmod a+x /etc/services.d/gluetun/run
 
-EXPOSE 8388 8000
+EXPOSE 8388 8888 8000
 
 ENV STORAGE_FILEPATH=/gluetun/servers.json
 
