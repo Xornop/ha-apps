@@ -1,0 +1,47 @@
+name: QDirStat
+version: "1.0.0"
+slug: qdirstat
+description: Disk usage analyzer with treemap and ingress
+url: https://github.com/Xornop/ha-apps/tree/main/qdirstat
+arch:
+  - amd64
+  - aarch64
+init: false
+boot: manual
+startup: application
+full_access: true
+privileged:
+  - SYS_ADMIN
+  - DAC_READ_SEARCH
+apparmor: false
+ingress: true
+ingress_port: 5800
+panel_icon: mdi:harddisk
+panel_title: QDirStat
+ports:
+  5800/tcp: null
+ports_description:
+  5800/tcp: Web-GUI (optional)
+map:
+  - type: addon_config
+    read_only: false
+    path: /config
+  - type: homeassistant_config
+    read_only: true
+    path: /scan/config
+  - type: share
+    read_only: false
+    path: /scan/share
+  - type: media
+    read_only: false
+    path: /scan/media
+  - type: backup
+    read_only: false
+    path: /scan/backup
+  - type: ssl
+    read_only: true
+    path: /scan/ssl
+options:
+  mount_device: /dev/disk/by-label/hassos-data
+schema:
+  mount_device: str?
