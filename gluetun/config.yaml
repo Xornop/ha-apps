@@ -1,5 +1,5 @@
 name: "Gluetun VPN"
-version: "1.0.10"
+version: "1.1.0"
 slug: "gluetun-addon"
 description: "VPN client for multiple providers with proxy services"
 arch:
@@ -13,6 +13,7 @@ init: false
 ports:
   8388/tcp: 8388
   8388/udp: 8388
+  8888/tcp: 8888
 devices:
   - /dev/net/tun
 map:
@@ -55,7 +56,3 @@ schema:
   dns_providers: str?
   tz: str?
   server_countries: str?
-ports:
-  8888/tcp: 8888
-  8388/tcp: 8388
-  8388/udp: 8388
