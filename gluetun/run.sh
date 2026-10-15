@@ -41,7 +41,7 @@ fi
 
 export DOT="off"
 export UPDATER_PERIOD="24h"
-export LOG_LEVEL="info"
+export LOG_LEVEL="$(bashio::config 'log_level' 'info')"
 export LOG_FORMATTER="text"
 export PPROF_ENABLED="no"
 export PPROF_BLOCK_PROFILE_RATE="0"
