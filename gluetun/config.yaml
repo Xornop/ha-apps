@@ -1,13 +1,10 @@
 name: "Gluetun VPN"
-version: "1.1.0"
+version: "1.2.0"
 slug: "gluetun-addon"
 description: "VPN client for multiple providers with proxy services"
 arch:
-  - armhf
-  - armv7
   - aarch64
   - amd64
-  - i386
 startup: application
 init: false
 ports:
@@ -40,6 +37,7 @@ options:
   dns_providers: ""
   tz: ""
   server_countries: ""
+  log_level: "info"
 schema:
   vpn_provider: str
   vpn_type: list(openvpn|wireguard)
@@ -56,3 +54,4 @@ schema:
   dns_providers: str?
   tz: str?
   server_countries: str?
+  log_level: list(debug|info|warning|error)?
