@@ -18,9 +18,9 @@ A curated collection of custom Apps designed to extend the capabilities of your 
 | **HA Gatekeeper** | Provides a web adress that a non-HA user can visit to trigger an action in your home - with login and long lived access tokens |
 | **slskd** | A client for the Soulseek peer-to-peer network with a web UI and REST API. Optionally routes Soulseek traffic through a WireGuard VPN via a local SOCKS5 proxy. |
 | **DroppedNeedle** | A self-hosted, all-in-one music platform combining library management, music discovery, requests, downloads, and streaming into a single application. |
-| **QDirStat** | Disk usage analyzer. Browse a treemap of your storage right from the sidebar and find out what is eating your disk space.
- |
-
+| **QDirStat** | Disk usage analyzer. Browse a treemap of your storage right from the sidebar and find out what is eating your disk space. |
+| **HA Guest panel** | Allow local access to certain specified HA entities without requiring login. |
+| **HA mDNS Aliases** | Get more mDNS adresses for your local network to point at your HA instance. |
 
 ---
 
