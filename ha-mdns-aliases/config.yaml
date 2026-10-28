@@ -1,0 +1,23 @@
+name: "HA mDNS Aliases"
+version: "1.2.0"
+slug: "ha-mdns-aliases"
+description: "Publishes additional .local hostnames pointing to the Home Assistant LAN address."
+url: "https://github.com/Xornop/ha-mdns-aliases"
+startup: "system"
+boot: "manual"
+init: false
+host_network: true
+arch:
+  - amd64
+  - aarch64
+  - armv7
+  - armhf
+  - i386
+
+options:
+  hostnames: "smarthome"
+  log_level: "info"
+
+schema:
+  hostnames: str
+  log_level: list(debug|info|warning|error|silent)

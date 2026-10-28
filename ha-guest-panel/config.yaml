@@ -1,0 +1,24 @@
+name: "HA Guest Panel"
+description: "Fully isolated control panel for grouped entities — separate from the HA frontend and HA login"
+version: "1.1.1"
+slug: "ha-guest-panel"
+init: false
+arch:
+  - amd64
+  - aarch64
+startup: services
+boot: auto
+ports:
+  8125/tcp: 8125
+ports_description:
+  8125/tcp: "HTTP access to the guest panel (no HA login required)"
+options:
+  ha_token: ""
+  groups: []
+schema:
+  ha_token: "password"
+  groups:
+    - name: "str"
+      main_entity: "str?"
+      entities:
+        - "str"
