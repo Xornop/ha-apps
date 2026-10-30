@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """Small IPv4 mDNS A-record responder for configured .local aliases.
 
-Important safeguards:
+Safeguards to coexist with Home Assistant's built-in mDNS (Avahi / zeroconf):
+- binds to the mDNS multicast address only, so it never receives (and never
+  steals) unicast packets meant for other mDNS services on port 5353;
+- joins the multicast group on the detected LAN interface only;
 - ignores DNS responses (QR=1) and non-standard DNS opcodes;
-- does not echo the question section in responses;
+- answers legacy unicast queries (source port != 5353) the RFC 6762 way;
+- answers AAAA queries for its aliases with an NSEC (no IPv6) so clients
+  don't wait for a timeout;
 - disables multicast loopback for packets sent by this socket;
-- does not use SO_REUSEPORT;
 - logs packet-level details only at debug level.
 """
 import json
@@ -13,11 +17,19 @@ import logging
 import socket
 import struct
 import sys
+import time
 
 OPTIONS_FILE = "/data/options.json"
 MDNS_GROUP = "224.0.0.251"
 MDNS_PORT = 5353
 RECORD_TTL = 120
+LEGACY_TTL = 10
+ADDRESS_REFRESH_SECONDS = 60
+
+TYPE_A = 1
+TYPE_AAAA = 28
+TYPE_NSEC = 47
+TYPE_ANY = 255
 
 VALID_LOG_LEVELS = {
     "debug": logging.DEBUG,
@@ -77,7 +89,7 @@ def detect_lan_ipv4():
     try:
         sock.connect(("192.0.2.1", 9))
         address = sock.getsockname()[0]
-        ip = socket.inet_aton(address)
+        socket.inet_aton(address)
         if address.startswith("127.") or address.startswith("169.254."):
             raise RuntimeError(f"Detected a non-LAN IPv4 address: {address}")
         return address
@@ -158,45 +170,122 @@ def parse_questions(packet):
     return questions, offset
 
 
-def build_response(packet, aliases, address):
-    """Build an answer only for an actual standard DNS query."""
-    if len(packet) < 12:
-        return None, []
+def a_record(name, address, ttl, cache_flush):
+    rclass = 0x8001 if cache_flush else 0x0001
+    return (
+        encode_name(name)
+        + struct.pack("!HHIH", TYPE_A, rclass, ttl, 4)
+        + socket.inet_aton(address)
+    )
 
-    flags = struct.unpack_from("!H", packet, 2)[0]
+
+def nsec_record(name, ttl):
+    # NSEC stating that only an A record exists for this name (no AAAA).
+    rdata = encode_name(name) + bytes([0, 1, 0x40])
+    return (
+        encode_name(name)
+        + struct.pack("!HHIH", TYPE_NSEC, 0x8001, ttl, len(rdata))
+        + rdata
+    )
+
+
+def build_response(packet, aliases, address, client_port=MDNS_PORT):
+    """Build an answer for a standard DNS query.
+
+    Returns (response, matched_names, unicast). `unicast` is True when the
+    reply must go directly to the sender (legacy unicast query or QU bit).
+    """
+    if len(packet) < 12:
+        return None, [], False
+
+    query_id, flags = struct.unpack_from("!HH", packet, 0)
     # QR=1 means this packet is already a response. Never answer it.
     if flags & 0x8000:
-        return None, []
+        return None, [], False
     # Ignore non-standard DNS opcodes.
     if flags & 0x7800:
-        return None, []
+        return None, [], False
 
-    questions, _ = parse_questions(packet)
+    questions, question_end = parse_questions(packet)
     if not questions:
-        return None, []
+        return None, [], False
 
+    legacy = client_port != MDNS_PORT
+    qu_bit = False
     answers = []
     matched = []
+    seen = set()
 
     for name, qtype, qclass in questions:
-        # Only IN-class IPv4 address (A) queries for configured aliases.
-        if qtype != 1 or (qclass & 0x7FFF) != 1 or name not in aliases:
+        if (qclass & 0x7FFF) not in (1, 255) or name not in aliases:
             continue
 
-        answer = (
-            encode_name(name)
-            + struct.pack("!HHIH", 1, 0x8001, RECORD_TTL, 4)
-            + socket.inet_aton(address)
+        if qclass & 0x8000:
+            qu_bit = True
+
+        if qtype in (TYPE_A, TYPE_ANY) and (name, TYPE_A) not in seen:
+            seen.add((name, TYPE_A))
+            if legacy:
+                answers.append(a_record(name, address, LEGACY_TTL, False))
+            else:
+                answers.append(a_record(name, address, RECORD_TTL, True))
+            matched.append(name)
+        elif qtype == TYPE_AAAA and (name, TYPE_AAAA) not in seen:
+            seen.add((name, TYPE_AAAA))
+            matched.append(name)
+            # Legacy clients get an empty (NODATA) reply; mDNS clients get NSEC.
+            if not legacy:
+                answers.append(nsec_record(name, RECORD_TTL))
+
+    if not matched:
+        return None, [], False
+
+    if legacy:
+        # RFC 6762 6.7: legacy unicast replies echo ID and question section.
+        header = struct.pack(
+            "!HHHHHH", query_id, 0x8400, len(questions), len(answers), 0, 0
         )
-        answers.append(answer)
-        matched.append(name)
+        body = packet[12:question_end] + b"".join(answers)
+        return header + body, matched, True
 
-    if not answers:
-        return None, []
-
-    # A multicast DNS response does not need to echo the question section.
     header = struct.pack("!HHHHHH", 0, 0x8400, 0, len(answers), 0, 0)
-    return header + b"".join(answers), matched
+    return header + b"".join(answers), matched, qu_bit
+
+
+def join_group(sock, address):
+    membership = socket.inet_aton(MDNS_GROUP) + socket.inet_aton(address)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, membership)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(address))
+
+
+def leave_group(sock, address):
+    membership = socket.inet_aton(MDNS_GROUP) + socket.inet_aton(address)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_DROP_MEMBERSHIP, membership)
+
+
+def open_socket(address, logger):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    if hasattr(socket, "SO_REUSEPORT"):
+        try:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        except OSError:
+            pass
+
+    try:
+        # Bind to the multicast group address only: we then receive multicast
+        # queries but never unicast traffic meant for Avahi / HA zeroconf.
+        sock.bind((MDNS_GROUP, MDNS_PORT))
+    except OSError as error:
+        logger.warning("Could not bind to %s (%s); falling back to all addresses", MDNS_GROUP, error)
+        sock.bind(("", MDNS_PORT))
+
+    join_group(sock, address)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 255)
+    # Prevent this socket's outgoing multicast packets from looping back locally.
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
+    sock.settimeout(ADDRESS_REFRESH_SECONDS)
+    return sock
 
 
 def main():
@@ -219,32 +308,46 @@ def main():
     logger.info("Detected response IPv4 address: %s", address)
     logger.debug("Logging level: %s", log_level)
 
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
     try:
-        # SO_REUSEADDR is used for multicast socket sharing on Linux.
-        # SO_REUSEPORT is deliberately not enabled.
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        sock.bind(("", MDNS_PORT))
-
-        membership = socket.inet_aton(MDNS_GROUP) + socket.inet_aton("0.0.0.0")
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, membership)
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 255)
-        # Prevent this socket's outgoing multicast packets from looping back locally.
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 0)
-        # Prefer the interface/address selected by the default route.
-        sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_IF, socket.inet_aton(address))
+        sock = open_socket(address, logger)
     except OSError as error:
         logger.error("Could not start the mDNS listener: %s", error)
-        sock.close()
         return 1
 
     logger.info("Listening for mDNS queries on UDP port %s", MDNS_PORT)
+    last_refresh = time.monotonic()
 
     try:
         while True:
-            packet, client = sock.recvfrom(9000)
+            # Follow IP changes (e.g. DHCP renewal) without a restart.
+            if time.monotonic() - last_refresh >= ADDRESS_REFRESH_SECONDS:
+                last_refresh = time.monotonic()
+                try:
+                    new_address = detect_lan_ipv4()
+                except Exception as error:
+                    logger.debug("Address refresh failed: %s", error)
+                    new_address = address
+                if new_address != address:
+                    try:
+                        leave_group(sock, address)
+                    except OSError:
+                        pass
+                    try:
+                        join_group(sock, new_address)
+                        logger.info("IPv4 address changed: %s -> %s", address, new_address)
+                        address = new_address
+                    except OSError as error:
+                        logger.warning("Could not switch to %s: %s", new_address, error)
+
             try:
-                response, matched = build_response(packet, aliases, address)
+                packet, client = sock.recvfrom(9000)
+            except socket.timeout:
+                continue
+
+            try:
+                response, matched, unicast = build_response(
+                    packet, aliases, address, client[1]
+                )
             except (ValueError, struct.error) as error:
                 logger.debug("Ignoring malformed DNS packet from %s: %s", client[0], error)
                 continue
@@ -253,10 +356,7 @@ def main():
                 continue
 
             try:
-                # QU bit asks for a unicast reply; otherwise use mDNS multicast.
-                questions, _ = parse_questions(packet)
-                unicast_requested = any(qclass & 0x8000 for _, _, qclass in questions)
-                destination = client if unicast_requested else (MDNS_GROUP, MDNS_PORT)
+                destination = client if unicast else (MDNS_GROUP, MDNS_PORT)
                 sock.sendto(response, destination)
                 logger.debug(
                     "Answered %s from %s -> %s",
