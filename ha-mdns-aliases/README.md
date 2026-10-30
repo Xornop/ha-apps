@@ -10,7 +10,10 @@ existing hostname.
 - Multiple configurable aliases.
 - No Ingress or web interface.
 - Configurable log level.
-- Ignores incoming DNS responses and does not echo questions in its replies.
+- Ignores incoming DNS responses and only listens to multicast traffic, so it does
+  not interfere with Home Assistant's built-in mDNS (Avahi/zeroconf).
+- Answers AAAA queries with a negative (NSEC) reply so clients don't wait.
+- Follows IPv4 address changes automatically.
 
 ## Installation
 
@@ -59,7 +62,8 @@ assuming Home Assistant is accessible on port 8123.
 - IPv6 AAAA records are not provided.
 - The existing Home Assistant hostname is not changed.
 - mDNS normally works only within the same LAN or VLAN.
-- Use unique aliases to avoid hostname conflicts.
+- Use unique aliases to avoid hostname conflicts. Do not use names that Home
+  Assistant already publishes itself, such as `homeassistant`.
 - On systems with VPNs or multiple network interfaces, the default route may
   select the wrong IPv4 address.
 - UDP port 5353 is the standard mDNS port and is shared with existing mDNS
