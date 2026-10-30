@@ -314,7 +314,7 @@ def main():
         logger.error("Could not start the mDNS listener: %s", error)
         return 1
 
-    logger.info("Listening for mDNS queries on UDP port %s", MDNS_PORT)
+    logger.info("Listening for mDNS queries on UDP port %s (group %s via %s)", MDNS_PORT, MDNS_GROUP, address)
     last_refresh = time.monotonic()
 
     try:
@@ -343,6 +343,20 @@ def main():
                 packet, client = sock.recvfrom(9000)
             except socket.timeout:
                 continue
+
+            if logger.isEnabledFor(logging.DEBUG):
+                try:
+                    flags = struct.unpack_from("!H", packet, 2)[0] if len(packet) >= 12 else 0
+                    if not flags & 0x8000:
+                        seen_questions, _ = parse_questions(packet)
+                        logger.debug(
+                            "Query from %s:%s: %s",
+                            client[0],
+                            client[1],
+                            ", ".join(f"{n} (type {t})" for n, t, _ in seen_questions) or "-",
+                        )
+                except (ValueError, struct.error):
+                    pass
 
             try:
                 response, matched, unicast = build_response(
