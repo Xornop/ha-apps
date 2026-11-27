@@ -14,7 +14,12 @@ real Home Assistant account:
   the browser is fully closed, so the visitor has to log in again next
   time.
 - Any later visit from the same device with a still-valid cookie skips the
-  login page entirely and triggers the sensor immediately.
+  login page and shows a single **Trigger** button; pressing it fires the
+  sensor. (Opening the link alone never triggers anything, so another
+  website can't fire your action by sending a logged-in visitor to it.)
+- After 5 wrong passwords for a user (or 10 from one IP) within 15
+  minutes, new logins for that user/IP are refused for the rest of that
+  window. Devices that are already logged in keep working.
 - If a user is later removed from the configuration, their saved session is
   revoked and their cookie is deleted the next time they visit — they're
   sent back to the login page instead of triggering anything.
