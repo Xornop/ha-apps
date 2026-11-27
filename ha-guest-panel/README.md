@@ -53,6 +53,7 @@ groups:
 | Option | Required | Description |
 | --- | --- | --- |
 | `ha_token` | yes | Long-lived access token used by the add-on to talk to Home Assistant. The add-on stops if it is empty. |
+| `allowed_hosts` | no | Extra host names the panel may be opened under (e.g. `guests.example.com` behind a reverse proxy). IP addresses, single-label names like `homeassistant` and `*.local` names always work. |
 | `groups` | no | List of groups shown on the panel. With no groups, the panel is empty. |
 | `groups[].name` | yes | Title of the group. |
 | `groups[].main_entity` | no | Entity shown first in the group, with a highlighted card. |
@@ -63,6 +64,7 @@ groups:
 ## Security notes
 
 - **The panel has no authentication.** Anyone who can reach port `8125` can operate every configured entity. Keep it on your local network and do not expose it to the internet.
+- Requests whose `Host` header isn't an IP address, a single-label name, a `.local` name or listed in `allowed_hosts` are rejected (HTTP 421). This stops DNS-rebinding attacks, where a website you visit points its own domain at the panel and controls it from your browser.
 - The access token never leaves the add-on; the browser only talks to the panel's own `/api` endpoints.
 - Use a dedicated Home Assistant user for the token if you want to limit what it can do, and avoid putting sensitive entities (alarms, garage doors, locks) in groups unless you really want guests to control them.
 - Only these services are accepted: `turn_on`, `turn_off`, `toggle` (lights, switches, input booleans, fans), `open_cover`, `close_cover`, `stop_cover`, `lock`, `unlock`, and for media players `turn_on`, `turn_off`, `media_play_pause`, `media_previous_track`, `media_next_track`, `volume_up`, `volume_down`.

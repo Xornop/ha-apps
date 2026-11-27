@@ -1,4 +1,5 @@
 const fs = require("fs");
+const net = require("net");
 const express = require("express");
 
 const options = JSON.parse(fs.readFileSync("/data/options.json", "utf8"));
@@ -62,7 +63,41 @@ async function haFetch(path, init) {
   return res;
 }
 
+// --- DNS-rebinding protection ----------------------------------------------
+// A malicious website can point its own domain name at this panel's LAN IP
+// and then call /api/service from a guest's browser. Such requests carry the
+// attacker's domain in the Host header, so only accept hosts that can't be
+// controlled from the internet: IP addresses, single-label LAN names, *.local,
+// and whatever is listed in the allowed_hosts option.
+const EXTRA_HOSTS = new Set(
+  (options.allowed_hosts || []).map((h) => String(h).trim().toLowerCase()).filter(Boolean)
+);
+
+function hostnameOf(hostHeader) {
+  const value = String(hostHeader || "").trim().toLowerCase();
+  if (value.startsWith("[")) {
+    const end = value.indexOf("]");
+    return end > 0 ? value.slice(1, end) : "";
+  }
+  return value.replace(/:\d+$/, "").replace(/\.$/, "");
+}
+
+function isAllowedHost(hostHeader) {
+  const host = hostnameOf(hostHeader);
+  if (!host) return false;
+  if (net.isIP(host)) return true;
+  if (EXTRA_HOSTS.has(host)) return true;
+  if (!host.includes(".")) return true; // e.g. "localhost", "homeassistant"
+  return host.endsWith(".local");
+}
+
 const app = express();
+
+app.use((req, res, next) => {
+  if (isAllowedHost(req.headers.host)) return next();
+  console.warn(`Rejected request with Host header "${req.headers.host}"`);
+  res.status(421).type("text/plain").send("Host not allowed. Add it to allowed_hosts in the add-on options.");
+});
 
 app.use(express.json());
 app.use(express.static("public"));

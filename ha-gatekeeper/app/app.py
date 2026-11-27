@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import json
 import logging
 import os
@@ -311,6 +312,97 @@ RESULT_HTML = """<!doctype html>
 </html>"""
 
 
+CONFIRM_HTML = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Confirm</title>
+  <style>
+    body {{ font-family: sans-serif; display: flex; justify-content: center;
+            align-items: center; height: 100vh; margin: 0; background: #f2f2f2; }}
+    form {{ background: white; padding: 2rem; border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1); text-align: center; }}
+    button {{ padding: 0.8rem 1.6rem; font-size: 1.1rem; cursor: pointer; }}
+  </style>
+</head>
+<body>
+  <form method="post">
+    <input type="hidden" name="action" value="trigger">
+    <button type="submit">Trigger</button>
+  </form>
+</body>
+</html>"""
+
+
+# --- Brute-force protection --------------------------------------------------
+# Failed logins are counted per username (unknown usernames share one bucket)
+# and, best effort, per client IP. The username limit is what actually stops
+# guessing: client_ip() can be spoofed via X-Forwarded-For. Gunicorn runs a
+# single worker, so in-memory state is shared by all requests.
+FAIL_WINDOW_SECONDS = 15 * 60
+MAX_FAILS_PER_USER = 5
+MAX_FAILS_PER_IP = 10
+_failures = {}  # key -> list of failure timestamps
+_failures_lock = threading.Lock()
+_DUMMY_PASSWORD = secrets.token_urlsafe(32)
+
+
+def _limit_keys(username, ip):
+    user_key = ("user", username if username in USERS else "*unknown*")
+    return [(user_key, MAX_FAILS_PER_USER), (("ip", ip), MAX_FAILS_PER_IP)]
+
+
+def _recent(key, now):
+    stamps = [t for t in _failures.get(key, []) if t > now - FAIL_WINDOW_SECONDS]
+    if stamps:
+        _failures[key] = stamps
+    else:
+        _failures.pop(key, None)
+    return stamps
+
+
+def login_blocked(username, ip):
+    now = time.time()
+    with _failures_lock:
+        return any(len(_recent(k, now)) >= limit for k, limit in _limit_keys(username, ip))
+
+
+def record_failure(username, ip):
+    now = time.time()
+    with _failures_lock:
+        for key, _ in _limit_keys(username, ip):
+            _recent(key, now)
+            _failures.setdefault(key, []).append(now)
+
+
+def clear_failures(username, ip):
+    with _failures_lock:
+        for key, _ in _limit_keys(username, ip):
+            _failures.pop(key, None)
+
+
+def password_ok(username, password):
+    """Constant-time check; unknown users still do a comparison."""
+    expected = USERS.get(username)
+    ok = hmac.compare_digest(
+        password.encode("utf-8"),
+        (expected if expected is not None else _DUMMY_PASSWORD).encode("utf-8"),
+    )
+    return ok and expected is not None
+
+
+def set_session_cookie(resp, token, expiry, remember):
+    resp.set_cookie(
+        COOKIE_NAME,
+        token,
+        max_age=(expiry - int(time.time())) if remember else None,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="Lax",
+    )
+
+
 def render_result(success):
     if success:
         return RESULT_HTML.format(title="Success", message=SUCCESS_MESSAGE, error_class="")
@@ -343,6 +435,12 @@ def trigger():
         stale_cookie = True
 
     if username:
+        # A GET never triggers: otherwise any website could fire the action
+        # by sending a logged-in visitor to this URL (the Lax cookie is sent
+        # on top-level navigations). The trigger needs a POST from the
+        # confirm page; cross-site POSTs don't carry the Lax cookie.
+        if request.method == "GET" or request.form.get("action") != "trigger":
+            return make_response(CONFIRM_HTML)
         rotated = rotate_session(token)
         ok = fire_and_reset(username)
         if ok:
@@ -353,54 +451,54 @@ def trigger():
         resp = make_response(render_result(ok), 200 if ok else 502)
         if rotated:
             new_token, new_expiry, remember = rotated
-            resp.set_cookie(
-                COOKIE_NAME,
-                new_token,
-                max_age=(new_expiry - int(time.time())) if remember else None,
-                httponly=True,
-                secure=COOKIE_SECURE,
-                samesite="Lax",
-            )
+            set_session_cookie(resp, new_token, new_expiry, remember)
         return resp
 
-    if request.method == "GET":
-        resp = make_response(LOGIN_HTML.format(error="", footer=LOGIN_FOOTER_HTML))
+    def login_page(error="", status=200):
+        resp = make_response(
+            LOGIN_HTML.format(error=error, footer=LOGIN_FOOTER_HTML), status
+        )
         if stale_cookie:
             resp.delete_cookie(COOKIE_NAME)
         return resp
+
+    if request.method == "GET" or request.form.get("action") == "trigger":
+        # A trigger POST without a valid session (expired/revoked) lands here too.
+        return login_page()
 
     form_username = request.form.get("username", "").strip()
     form_password = request.form.get("password", "")
+    ip = client_ip()
 
-    if USERS.get(form_username) != form_password:
+    if login_blocked(form_username, ip):
+        logger.warning(
+            "Blocked login attempt for username '%s' from %s (too many failures)",
+            form_username, ip,
+        )
+        return login_page(
+            '<p class="error">Too many failed attempts. Try again later.</p>', 429
+        )
+
+    if not password_ok(form_username, form_password):
+        record_failure(form_username, ip)
         logger.warning(
             "Failed login attempt for username '%s' from %s",
-            form_username, client_ip(),
+            form_username, ip,
         )
-        error = '<p class="error">Incorrect password</p>'
-        resp = make_response(LOGIN_HTML.format(error=error, footer=LOGIN_FOOTER_HTML), 401)
-        if stale_cookie:
-            resp.delete_cookie(COOKIE_NAME)
-        return resp
+        return login_page('<p class="error">Incorrect password</p>', 401)
 
+    clear_failures(form_username, ip)
     remember_me = request.form.get("remember") == "on"
     new_token, expires_at = create_session(form_username, remember_me)
     ok = fire_and_reset(form_username)
     if ok:
         logger.info(
             "Triggered by '%s' via new login (%s, remember_me=%s)",
-            form_username, client_ip(), remember_me,
+            form_username, ip, remember_me,
         )
 
     resp = make_response(render_result(ok), 200 if ok else 502)
-    resp.set_cookie(
-        COOKIE_NAME,
-        new_token,
-        max_age=(expires_at - int(time.time())) if remember_me else None,
-        httponly=True,
-        secure=COOKIE_SECURE,
-        samesite="Lax",
-    )
+    set_session_cookie(resp, new_token, expires_at, remember_me)
     return resp
 
 
